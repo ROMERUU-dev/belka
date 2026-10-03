@@ -188,3 +188,60 @@ deslizador de Transformar u Óptica.
 
 Sin cámara simulada. `belka/data/cameras.json`: por marca, los nombres de los controles de libgphoto2 y
 notas de conexión (modo USB que hay que elegir en la cámara); avisos por modelo.
+
+## Ampliación 0.4: polvo con campo oscuro y lectura del borde
+
+Modelo: `Frame.darkfield` (ruta relativa de la toma de campo oscuro, "" si no hay), `Frame.edge` (dict con lo
+leído en el borde), `DevelopSettings.dust_strength` (0 = apagado … 1) y la sección `"dust"` en `disabled`.
+
+### `belka/core/dust.py` (nuevo)
+
+```python
+def dust_mask(bright, darkfield=None, strength=0.5, analysis=None) -> np.ndarray   # bool H×W
+def repair(bright, mask) -> np.ndarray                                              # mismo tamaño, lineal
+def remove_dust(bright, darkfield, strength, analysis=None) -> tuple[np.ndarray, np.ndarray]
+```
+
+`bright` y `darkfield`: cámara lineal SIN orientar (como salen de `load_frame`), mismo tamaño. Con campo oscuro,
+el polvo y los rayones son lo que brilla sobre negro; sin él, detección en la propia imagen (más conservadora).
+La reparación rellena en el dominio de densidad (log) con textura de grano, para que no queden manchas lisas.
+Vista previa (2000 px): un paso de intensidad < 150 ms; la primera vez en un fotograma < 250 ms (mide la
+película); 24 MP < 3 s.
+
+La toma de campo oscuro se registra contra la brillante (correlación de fase de bordes, ~0,3 px) antes de
+compararlas; si no coincide (otro fotograma, más de 1 % de desplazamiento o rotada), `darkfield_matches()` da
+False, se busca solo en la imagen y la ventana lo dice en el panel. Sin campo oscuro, una mancha solo cuenta si
+es más densa de lo que cualquier luz de la foto puede dejar en el negativo: a 0,5 respeta estrellas, brillos en
+los ojos y farolas; por encima puede tomar luces pequeñas (lo dice la ayuda del deslizador).
+
+En la app, el polvo se quita en `DevelopWorker._dust` justo después de cargar (vista previa, detalle y
+exportación por igual) y antes de orientar y deformar; la toma de campo oscuro se decodifica una vez por tamaño.
+Lo que sigue (deformación, inversión) se guarda en caché por la máscara reparada, así que un paso de intensidad
+que repara los mismos píxeles no rehace nada más.
+
+### `belka/core/edgeprint.py` (nuevo)
+
+`read_edge(linear, analysis)` lee los códigos DX del borde (pista de reloj y de datos) en la imagen ORIENTADA
+sobre la que se midió `analysis` (su fotograma está en coordenadas orientadas) y devuelve la película
+(`dx_codes.json`), el perfil si lo hay y el número de fotograma impreso. Se lee una vez por fotograma al
+importarlo o capturarlo y se guarda en `Frame.edge`; la tira muestra el número («#002 · 21A») y Perfil de
+película ofrece «Usar» cuando el borde nombra otra película.
+
+### Captura (panel de luz y flujo)
+
+`LightPanel.set_pattern("normal" | "darkfield")`: en campo oscuro la zona de la película queda negra y se
+ilumina un anillo alrededor (la luz llega oblicua a través del difusor y solo lo que dispersa —polvo,
+rayones— entra al objetivo). La toma de campo oscuro es una parte extra de la captura, con la velocidad más
+lenta N pasos (ajustable) y restaurada al terminar; se guarda en `Frame.darkfield`.
+
+### `belka/core/edgeprint.py` (nuevo)
+
+```python
+@dataclass
+class EdgeInfo: dx: str; film: str; profile_id: str | None; frame: str; confidence: float
+def read_edge(linear, analysis=None) -> EdgeInfo | None
+```
+
+Lee el código de barras DX del borde de la película (35 mm): identifica la película (tabla
+`belka/data/dx_codes.json`) y el número de fotograma, con la tira horizontal o vertical y por cualquiera de
+las dos caras.

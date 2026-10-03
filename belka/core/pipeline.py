@@ -147,8 +147,11 @@ class DevelopSettings:
     # of the oriented image before lens correction and warp, so they stay on
     # the same picture features whatever the transform.
     upright_guides: tuple[tuple[float, float, float, float], ...] = ()
+    # Dust and scratch removal before the inversion (0 = off). Uses the frame's
+    # dark-field capture when there is one, otherwise detection on the image.
+    dust_strength: float = 0.0  # 0..1
     # Sections switched off with their panel toggle ("curve", "hsl", "grading",
-    # "detail", "effects", "transform", "lens").
+    # "detail", "effects", "transform", "lens", "dust").
     disabled: tuple[str, ...] = ()
 
     def to_json(self) -> dict:

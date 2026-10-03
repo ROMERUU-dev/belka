@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QStyle,
     QStyleOptionComboBox,
     QStylePainter,
@@ -58,6 +59,8 @@ DRIVER_STATUS_LABELS = {
     "deprecated": "Obsoleto",
 }
 
+DARKFIELD_STOPS = 3  # scattered light is faint: ~8× the frame's exposure
+
 DIM = "#8a8a8a"
 WARN = "#e0a050"
 _QSS = f"""
@@ -85,6 +88,14 @@ def shutter_seconds(text: str) -> float | None:
     except ValueError:
         return None
     return value if value > 0 else None
+
+
+def closest_shutter(choices: list[str], seconds: float) -> str | None:
+    """The camera's speed nearest to ``seconds``, in stops; None if no label reads as a time."""
+    options = [(c, v) for c in choices if (v := shutter_seconds(c))]
+    if not options:
+        return None
+    return min(options, key=lambda cv: abs(math.log2(cv[1] / seconds)))[0]
 
 
 def support_text(model: str) -> tuple[str, bool]:
@@ -146,6 +157,7 @@ class CapturePanel(QScrollArea):
     flatRequested = Signal()
     clearFlatsRequested = Signal()
     scaleRequested = Signal()
+    captureOptionsChanged = Signal(dict)  # capture_options(), to store in the app settings
 
     def __init__(self, light: LightSettings, adapters: list[Adapter], parent: QWidget | None = None):
         super().__init__(parent)
@@ -165,6 +177,7 @@ class CapturePanel(QScrollArea):
         self._setting_keys: dict[str, CameraSetting] = {}
         self._suggestion: tuple[str, str] | None = None
         self._compat_dialog: CompatibleCamerasDialog | None = None
+        self._busy = False
 
         # ---------------------------------------------------- camera
         cam_box = QGroupBox(_("Cámara"))
@@ -298,6 +311,19 @@ class CapturePanel(QScrollArea):
         lf.addRow(self.flat_clear_btn)
         self.flat_label = _hint()
         lf.addRow(self.flat_label)
+        self.darkfield_check = QCheckBox(_("Toma antipolvo (campo oscuro)"))
+        self.darkfield_check.setToolTip(_("Tras cada fotograma, otra toma con la película a oscuras y un anillo de luz "
+                                          "alrededor: solo brillan el polvo y los rayones, y el revelado los borra. "
+                                          "Necesita el panel de luz."))
+        lf.addRow(self.darkfield_check)
+        self.darkfield_spin = QSpinBox()
+        self.darkfield_spin.setRange(1, 6)
+        self.darkfield_spin.setValue(DARKFIELD_STOPS)
+        self.darkfield_spin.setPrefix("+")
+        self.darkfield_spin.setSuffix(" " + _("pasos"))
+        self.darkfield_spin.setToolTip(_("Cuánto más lenta que la del fotograma es la velocidad de la toma antipolvo"))
+        self.darkfield_spin.setEnabled(False)
+        lf.addRow(_("Exposición"), self.darkfield_spin)
         root.addWidget(light_box)
 
         # ---------------------------------------------------- capture
@@ -354,6 +380,8 @@ class CapturePanel(QScrollArea):
         self.mode_combo.currentIndexChanged.connect(self._on_light_ui)
         self.brightness.valueChanged.connect(lambda _v: self._on_light_ui())
         self.fullscreen_check.toggled.connect(lambda _v: self._on_light_ui())
+        self.darkfield_check.toggled.connect(self._on_capture_options)
+        self.darkfield_spin.valueChanged.connect(self._on_capture_options)
 
     def _on_detect(self) -> None:
         self.camera_status.setText(_("Buscando cámaras…"))
@@ -371,6 +399,13 @@ class CapturePanel(QScrollArea):
     def _on_light_toggled(self, on: bool) -> None:
         self.light_btn.setText(_("Apagar luz") if on else _("Encender luz"))
         self.lightToggled.emit(on)
+
+    def _on_capture_options(self, *_args) -> None:
+        self._update_darkfield_spin()
+        self.captureOptionsChanged.emit(self.capture_options())
+
+    def _update_darkfield_spin(self) -> None:
+        self.darkfield_spin.setEnabled(self.darkfield_check.isChecked() and not self._busy)
 
     def _on_adapter(self, _i: int) -> None:
         self.light.adapter = self.adapter_combo.currentData()
@@ -416,6 +451,26 @@ class CapturePanel(QScrollArea):
         for w in widgets:
             w.blockSignals(False)
         self.show_tint(light.tint)
+
+    def darkfield_enabled(self) -> bool:
+        return self.darkfield_check.isChecked()
+
+    def darkfield_stops(self) -> int:
+        return self.darkfield_spin.value()
+
+    def capture_options(self) -> dict:
+        return {"darkfield": self.darkfield_enabled(), "darkfield_stops": self.darkfield_stops()}
+
+    def load_capture_options(self, data: dict | None) -> None:
+        """Restore what ``capture_options`` returned, without echoing it back."""
+        data = data or {}
+        for w in (self.darkfield_check, self.darkfield_spin):
+            w.blockSignals(True)
+        self.darkfield_check.setChecked(bool(data.get("darkfield", False)))
+        self.darkfield_spin.setValue(int(data.get("darkfield_stops", DARKFIELD_STOPS)))
+        for w in (self.darkfield_check, self.darkfield_spin):
+            w.blockSignals(False)
+        self._update_darkfield_spin()
 
     def show_tint(self, tint) -> None:
         self.tint_swatch.set_color(tint)
@@ -489,8 +544,11 @@ class CapturePanel(QScrollArea):
     def set_busy(self, busy: bool) -> None:
         # The light used for an exposure must be the one the job recorded.
         for w in (self.capture_btn, self.calibrate_btn, self.flat_btn, self.flat_clear_btn, self.mode_combo,
-                  self.brightness, self.screen_combo, self.adapter_combo, self.fullscreen_check, self.scale_btn):
+                  self.brightness, self.screen_combo, self.adapter_combo, self.fullscreen_check, self.scale_btn,
+                  self.darkfield_check):
             w.setEnabled(not busy)
+        self._busy = busy
+        self._update_darkfield_spin()
 
     def set_liveview_checked(self, on: bool) -> None:
         self.live_check.blockSignals(True)
@@ -535,21 +593,16 @@ class CapturePanel(QScrollArea):
         setting = self._setting_keys.get("shutter")
         if setting is None or setting.kind != "choice":
             return None
-        options = [(c, shutter_seconds(c)) for c in setting.choices]
-        options = [(c, v) for c, v in options if v]
-        if not options:
-            return None
         if from_seconds:
             seconds = from_seconds
-            current = min(options, key=lambda cv: abs(math.log2(cv[1] / seconds)))[0]
+            current = closest_shutter(setting.choices, seconds)
         else:
             current = str(setting.value)
             seconds = shutter_seconds(current)
-            if seconds is None:
-                return None
-        target = seconds * 2.0 ** stops
-        best = min(options, key=lambda cv: abs(math.log2(cv[1] / target)))
-        return current, best[0]
+        if current is None or seconds is None:
+            return None
+        best = closest_shutter(setting.choices, seconds * 2.0 ** stops)
+        return (current, best) if best else None
 
     def set_exposure_suggestion(self, text: str, setting: str | None = None, value: str | None = None) -> None:
         """Advice after a capture; with a value, an "Aplicar" button sets it on the camera.

@@ -63,8 +63,11 @@ class CaptureHint:
 
     kind: str = "frame"  # "frame", "flat" or "calibration"
     light: tuple[float, float, float] = (1.0, 1.0, 1.0)
-    part: int = 0  # index within an RGB-sequential frame
-    parts: int = 1
+    part: int = 0  # index of this exposure within the frame (RGB parts, then the dark-field)
+    parts: int = 1  # exposures in the frame, dark-field included
+    # "darkfield": the film area is dark and a ring of light surrounds it, so
+    # only dust and scratches show (shot with a slower shutter).
+    pattern: str = "normal"
 
 
 class CameraBackend(ABC):

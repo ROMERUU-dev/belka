@@ -2,11 +2,17 @@
 
 It answers its shutter speed like a real camera on a copy stand (a slower
 speed gives a brighter raw), so the capture flow and the exposure advice can
-be exercised end to end. ``install`` makes the app detect and open it.
+be exercised end to end. A dark-field shot (``hint.pattern == "darkfield"``)
+is ``synth.dusty_scan``'s: dust glowing on black over a faint film, as bright
+as the shutter and the ring's brightness make it. Its dirt does not match
+the bright frames (``synth.backlit_scan``); a test that needs a matching pair
+takes both from ``synth.dusty_scan``. ``install`` makes the app detect and
+open it.
 """
 
 from __future__ import annotations
 
+import functools
 import math
 from pathlib import Path
 
@@ -22,6 +28,18 @@ from belka.core.rawio import save_linear_tiff
 FAKE = CameraInfo(model="Fake Camera", port="usb:fake", backend="fake")
 SHUTTERS = ["1/250", "1/125", "1/60", "1/30", "1/15", "1/8", "1/4", "1/2", "1"]
 REFERENCE_SHUTTER = "1/30"  # puts the film base just under clipping
+FRAME_SIZE = (845, 1100)  # (width, height) of synth.backlit_scan's view, which dark-field shots share
+
+
+def _profile(film: str):
+    return ProfileLibrary(user_dir=Path("/nonexistent-belka")).get(film)
+
+
+@functools.lru_cache(maxsize=8)
+def _darkfield(film: str, stops: float) -> tuple[np.ndarray, np.ndarray]:
+    """(dark-field raw, dirt mask) ``stops`` over the reference exposure; deterministic, so cached."""
+    _bright, darkfield, truth = synth.dusty_scan(_profile(film), size=FRAME_SIZE, darkfield_stops=stops, seed=7)
+    return darkfield, truth
 
 
 def _seconds(text: str) -> float:
@@ -44,6 +62,8 @@ class FakeBackend(CameraBackend):
         self.opened = False
         self.focus = 0
         self.captures: list[CaptureHint] = []
+        self.shutters: list[str] = []  # the speed each capture was taken at
+        self.darkfield_truth: np.ndarray | None = None  # where the last dark-field shot has dirt
         self._rng = np.random.default_rng(7)
 
     def open(self) -> None:
@@ -74,13 +94,18 @@ class FakeBackend(CameraBackend):
     def capture(self, dest_dir: Path, basename: str, hint: CaptureHint | None = None) -> list[Path]:
         hint = hint or CaptureHint()
         self.captures.append(hint)
+        self.shutters.append(str(self._settings["shutter"].value))
         emission = tuple(float(v) ** 2.2 for v in hint.light)
         if hint.kind == "flat":
             raw = synth.photograph(np.zeros((400, 630, 3), np.float32), emission,
                                    exposure=0.5 * 2.0 ** self.camera_ev(), rng=self._rng)
+        elif hint.pattern == "darkfield":
+            # The ring's brightness scales the scattered light just as the shutter does.
+            stops = self.camera_ev() + math.log2(max(max(emission), 1e-3))
+            raw, self.darkfield_truth = _darkfield(self._film, round(stops, 2))
         else:
-            profile = ProfileLibrary(user_dir=Path("/nonexistent-belka")).get(self._film)
-            raw, _truth = synth.backlit_scan(profile, light_rgb=emission, camera_ev=self.camera_ev(), rng=self._rng)
+            raw, _truth = synth.backlit_scan(_profile(self._film), light_rgb=emission, camera_ev=self.camera_ev(),
+                                             rng=self._rng)
         dest_dir.mkdir(parents=True, exist_ok=True)
         return [save_linear_tiff(dest_dir / f"{basename}.tif", raw, meta={"camera": self.info.model})]
 

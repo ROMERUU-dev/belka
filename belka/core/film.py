@@ -95,11 +95,26 @@ def slugify(text: str) -> str:
     return slug or "perfil"
 
 
+def display_name(profile: FilmProfile) -> str:
+    """The name in the UI language: built-in names such as "Genérico C-41" are
+    translated; the user's own profiles keep the name they were given."""
+    from belka.i18n import _
+
+    return _(profile.name) if profile.builtin else profile.name
+
+
+def display_notes(profile: FilmProfile) -> str:
+    from belka.i18n import _
+
+    return _(profile.notes) if profile.builtin and profile.notes else profile.notes
+
+
 def film_name(profile: FilmProfile) -> str:
     """'Kodak Portra 400', without repeating a brand the name already carries ('CineStill 800T')."""
-    if not profile.brand or profile.name.startswith(profile.brand):
-        return profile.name
-    return f"{profile.brand} {profile.name}"
+    name = display_name(profile)
+    if not profile.brand or name.startswith(profile.brand):
+        return name
+    return f"{profile.brand} {name}"
 
 
 class ProfileLibrary:

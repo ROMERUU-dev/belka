@@ -50,11 +50,23 @@ def develop_full(session: Session, frame: Frame, library: ProfileLibrary, max_si
     """
     settings = session.settings_for(frame)
     profile = library.get(settings.profile_id)
-    image = load_frame(session, frame, half_size=max_side is not None)
+    half = max_side is not None
+    image = load_frame(session, frame, half_size=half)
     analysis = pl.analyze(image.rgb, settings, profile)
-    if max_side is not None and _cropped_side(image, analysis, settings) < max_side:
+    if half and _cropped_side(image, analysis, settings) < max_side:
+        half = False
         image = load_frame(session, frame, half_size=False)
         analysis = pl.analyze(image.rgb, settings, profile)
+    if settings.dust_strength > 0 and settings.section_on("dust"):
+        from belka.core import dust
+        from belka.core.rawio import load_linear
+
+        darkfield = None
+        if frame.darkfield and session.resolve(frame.darkfield).is_file():
+            # Decoded like the frame (never through load_frame: no flat), so the two line up.
+            darkfield = dv.match_size(load_linear(session.resolve(frame.darkfield), half_size=half).rgb,
+                                      image.rgb.shape)
+        image.rgb, _mask = dust.remove_dust(image.rgb, darkfield, settings.dust_strength, analysis)
     full_w = (image.meta.get("full_size") or (image.rgb.shape[1], 0))[0]
     out = dv.develop(
         image.rgb, analysis, settings, profile, image.camera_matrix, bool(image.meta.get("rgb_sequential")),

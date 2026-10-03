@@ -72,6 +72,11 @@ class Frame:
     exported: list[str] = field(default_factory=list)
     # Named develop states, like Lightroom snapshots: {"name", "created", "settings"}
     snapshots: list[dict] = field(default_factory=list)
+    # Dark-field capture (the screen lights only around the film, so dust and
+    # scratches glow on black): relative path, "" when none was taken.
+    darkfield: str = ""
+    # What was read on the film's edge (DX barcode): see belka.core.edgeprint.
+    edge: dict = field(default_factory=dict)
 
     @classmethod
     def from_json(cls, data: dict) -> "Frame":
@@ -80,7 +85,9 @@ class Frame:
 
     @property
     def label(self) -> str:
-        return f"#{self.id}" + (" RGB" if self.mode == "rgb" else "")
+        # The number printed on the film's edge, when it was read, as photographers know the frame by it.
+        printed = self.edge.get("frame") if isinstance(self.edge, dict) else ""
+        return f"#{self.id}" + (f" · {printed}" if printed else "") + (" RGB" if self.mode == "rgb" else "")
 
 
 @dataclass
@@ -246,7 +253,7 @@ class Session:
         self.save()
         kept: list[Path] = []
         if delete_files:
-            for rel in frame.files:
+            for rel in [*frame.files, *([frame.darkfield] if frame.darkfield else [])]:
                 p = self.resolve(rel)
                 if p.exists() and _inside(p, self.path) and not _move_to_trash(p):
                     kept.append(p)

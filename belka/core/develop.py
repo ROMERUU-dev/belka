@@ -159,6 +159,15 @@ def develop(img: np.ndarray, analysis: pl.Analysis, settings: pl.DevelopSettings
     return finish(display, settings, scale, seed)
 
 
+def match_size(img: np.ndarray, shape: tuple) -> np.ndarray:
+    """``img`` resized to ``shape``'s height and width (a dark-field shot decoded at another size)."""
+    if img.shape[:2] == tuple(shape[:2]):
+        return img
+    import cv2
+
+    return cv2.resize(img, (shape[1], shape[0]), interpolation=cv2.INTER_AREA)
+
+
 def frame_seed(frame_id: str) -> int:
     """Grain must look the same in the preview and in every export of a frame."""
     return sum(ord(c) * 131 ** i for i, c in enumerate(frame_id)) % (2**31)

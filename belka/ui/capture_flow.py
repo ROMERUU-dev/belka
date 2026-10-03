@@ -4,18 +4,23 @@ A frame is one capture with white or tinted light, or three captures with
 red, green and blue light. Before each exposure the panel switches colour and
 the flow waits ``settle_ms`` so the LCD has fully changed (and its backlight
 settled) before the shutter opens.
+
+With the dust option on, a frame ends with one more exposure: the dark-field
+shot, where the panel darkens the film and lights a ring around it so only
+dust and scratches show. Scattered light is faint, so that shot runs a few
+stops slower; the camera's speed is put back however the job ends.
 """
 
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from belka.camera.base import CaptureHint
+from belka.camera.base import CameraSetting, CaptureHint
 from belka.camera.worker import CameraController
 from belka.core import flatfield
 from belka.core.pipeline import estimate_base
@@ -23,14 +28,18 @@ from belka.core.rawio import RAW_EXTENSIONS, load_linear
 from belka.core.session import Session, flat_role
 from belka.i18n import _
 from belka.light.geometry import LightSettings, display_value, tint_for_base
+from belka.ui.capture_panel import closest_shutter, shutter_seconds
 
 _ids = itertools.count(1)
+DARKFIELD_SUFFIX = "_df"
 
 
 @dataclass
 class Step:
     display: tuple[float, float, float]
     emission: tuple[float, float, float]
+    pattern: str = "normal"  # or "darkfield" (see belka.light.panel)
+    stops: int = 0  # how much slower than the frame's shutter this exposure runs
 
 
 @dataclass
@@ -41,6 +50,12 @@ class Job:
     uses_panel: bool
     id: int = field(default_factory=lambda: next(_ids))
     files: list[list[Path]] = field(default_factory=list)
+    restore_shutter: tuple[str, str] | None = None  # (control name, speed) to put back at the end
+
+    @property
+    def parts(self) -> int:
+        """Exposures that make the image itself; the dark-field one comes after them."""
+        return sum(s.pattern == "normal" for s in self.steps)
 
 
 def pick_main_file(files: list[Path]) -> Path:
@@ -48,6 +63,13 @@ def pick_main_file(files: list[Path]) -> Path:
         if f.suffix.lower() in RAW_EXTENSIONS:
             return f
     return files[0]
+
+
+def _relative(path: Path, root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(root.resolve()))
+    except ValueError:
+        return str(path.resolve())
 
 
 class CaptureFlow(QObject):
@@ -68,6 +90,8 @@ class CaptureFlow(QObject):
         set_capturing: Callable[[bool], None],
         parent: QObject | None = None,
         panel_ready: Callable[[], bool] | None = None,
+        set_pattern: Callable[[str], None] | None = None,
+        darkfield_stops: Callable[[], int] | None = None,
     ):
         super().__init__(parent)
         self.camera = camera
@@ -80,10 +104,16 @@ class CaptureFlow(QObject):
         # an app cannot raise its own window, only ask for activation, so the
         # first exposure waits for it instead of photographing the main window.
         self._panel_ready = panel_ready or (lambda: True)
+        self._set_pattern = set_pattern or (lambda _pattern: None)
+        # Extra stops for the dark-field shot after each frame; 0 = no such shot.
+        self._darkfield_stops = darkfield_stops or (lambda: 0)
         self._job: Job | None = None
         self._pending: list[Step] = []
+        self._camera_settings: dict[str, CameraSetting] = {}
         camera.worker.captured.connect(self._on_captured)
         camera.worker.capture_failed.connect(self._on_failed)
+        camera.worker.settings_ready.connect(self._on_camera_settings)
+        camera.worker.closed.connect(self._on_camera_closed)
 
     @property
     def busy(self) -> bool:
@@ -97,6 +127,13 @@ class CaptureFlow(QObject):
         if self.light.mode == "rgb":
             return [Step(self.light.display_rgb(c), self.light.emission(c)) for c in range(3)]
         return [Step(self.light.display_rgb(), self.light.emission())]
+
+    def _darkfield_step(self, stops: int) -> Step:
+        """The ring at the frame's brightness and tint (all three primaries in RGB mode)."""
+        tint = (1.0, 1.0, 1.0) if self.light.mode == "white" else self.light.tint
+        level = max(0.0, min(1.0, self.light.brightness))
+        emission = tuple(level * v for v in tint)
+        return Step(tuple(display_value(v) for v in emission), emission, pattern="darkfield", stops=stops)
 
     def _start(self, kind: str, steps: list[Step]) -> bool:
         if self._job is not None:
@@ -130,7 +167,15 @@ class CaptureFlow(QObject):
         if self.light.mode == "rgb" and not self._light_visible():
             self.error.emit(_("El modo RGB secuencial necesita el panel de luz encendido."))
             return False
-        return self._start("frame", self._steps())
+        steps = self._steps()
+        stops = self._darkfield_stops()
+        skip_darkfield = stops > 0 and not self._light_visible()
+        if stops > 0 and not skip_darkfield:
+            steps.append(self._darkfield_step(stops))
+        started = self._start("frame", steps)
+        if started and skip_darkfield:
+            self.message.emit(_("La toma antipolvo necesita el panel de luz encendido: se omitió."))
+        return started
 
     def capture_flat(self) -> bool:
         return self._start("flat", self._steps())
@@ -159,22 +204,53 @@ class CaptureFlow(QObject):
             self.cancel(_("Se apagó el panel de luz durante la captura: captura cancelada."))
             return
         step = self._pending.pop(0)
+        self._set_pattern(step.pattern)
         self._show_color(step.display)
         session = job.session
         n = len(job.files)
         if job.kind == "frame":
             frame_id = session.next_id()
-            suffix = "" if len(job.steps) == 1 else "_" + "RGB"[n]
+            if step.pattern == "darkfield":
+                suffix = DARKFIELD_SUFFIX
+                self._slow_shutter(job, step.stops)
+            else:
+                suffix = "" if job.parts == 1 else "_" + "RGB"[n]
             dest, basename = session.raw_dir, session.new_capture_basename(frame_id, suffix)
         elif job.kind == "flat":
             role = flat_role("rgb" if len(job.steps) == 3 else "single", n)
             dest, basename = session.flat_dir, f"flat_{role}"
         else:
             dest, basename = session.flat_dir, "calibracion_tinte"
-        hint = CaptureHint(kind=job.kind, light=step.display, part=n, parts=len(job.steps))
+        hint = CaptureHint(kind=job.kind, light=step.display, part=n, parts=len(job.steps), pattern=step.pattern)
         settle = self.light.settle_ms if job.uses_panel else 0
         token = job.id
         QTimer.singleShot(settle, lambda: self._fire(token, dest, basename, hint, 0))
+
+    def _slow_shutter(self, job: Job, stops: int) -> None:
+        """Lengthen the exposure for the dark-field shot; ``_end`` puts it back.
+
+        Queued on the camera thread before the capture request, so the camera
+        has the new speed when it fires.
+        """
+        setting = self._camera_settings.get("shutter")
+        current = str(setting.value) if setting else ""
+        seconds = shutter_seconds(current)
+        slower = None
+        if setting is not None and setting.kind == "choice" and not setting.readonly and seconds:
+            slower = closest_shutter(setting.choices, seconds * 2.0 ** stops)
+        if slower is None:
+            self.message.emit(_("Belka no puede cambiar la velocidad de esta cámara: "
+                                "la toma antipolvo se hace con la de siempre."))
+            return
+        if slower != current:
+            job.restore_shutter = (setting.name, current)
+            self.camera.request_setting.emit(setting.name, slower)
+
+    def _on_camera_settings(self, settings: list) -> None:
+        self._camera_settings = {s.key: s for s in settings}
+
+    def _on_camera_closed(self) -> None:
+        self._camera_settings = {}
 
     def _fire(self, token: int, dest: Path, basename: str, hint: CaptureHint, waited_ms: int) -> None:
         job = self._job
@@ -200,14 +276,32 @@ class CaptureFlow(QObject):
         self._next()
 
     def _on_failed(self, message: str, tag: object) -> None:
-        if self._job is None or tag != self._job.id:
+        job = self._job
+        if job is None or tag != job.id:
+            return
+        if job.kind == "frame" and len(job.files) == job.parts < len(job.steps):
+            # Only the extra dark-field shot failed: keep the frame without it.
+            self._pending = []
+            self._finish()
+            self.error.emit(_("Falló la toma antipolvo: {msg}. El fotograma se guardó sin ella.").format(msg=message))
             return
         self._end()
         self.error.emit(_("Falló la captura: {msg}").format(msg=message))
 
     def _end(self) -> None:
+        job = self._job
         self._job = None
         self._pending = []
+        if job is not None and job.restore_shutter is not None:
+            # Queued behind any capture still in flight on the camera thread.
+            name, speed = job.restore_shutter
+            self.camera.request_setting.emit(name, speed)
+            shutter = self._camera_settings.get("shutter")
+            if shutter is not None:
+                # The camera's echo arrives later; the next frame must not
+                # start from the slowed speed meanwhile.
+                self._camera_settings["shutter"] = replace(shutter, value=speed)
+        self._set_pattern("normal")
         self._set_capturing(False)
         self._show_color(self.light.display_rgb())
         self.busyChanged.emit(False)
@@ -218,10 +312,14 @@ class CaptureFlow(QObject):
         session = job.session
         try:
             if job.kind == "frame":
-                main = [pick_main_file(f) for f in job.files]
-                displays = [list(s.display) for s in job.steps]
+                main = [pick_main_file(f) for f in job.files[:job.parts]]
+                displays = [list(s.display) for s in job.steps[:job.parts]]
                 mode = "rgb" if len(main) == 3 else "single"
                 frame = session.add_frame(main, mode=mode, lights=displays)
+                if len(job.files) > job.parts:
+                    # Lit by the ring, not the backlight: the flat-field does not describe it.
+                    frame.darkfield = _relative(pick_main_file(job.files[job.parts]), session.path)
+                    session.save()
                 self._end()
                 self.frameCaptured.emit(frame, session)
                 return

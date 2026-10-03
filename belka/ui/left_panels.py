@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from belka.core.film import FILM_TYPES, FilmProfile, ProfileLibrary
+from belka.core.film import FILM_TYPES, FilmProfile, ProfileLibrary, display_name, display_notes
 from belka.core.history import History, split_label
 from belka.i18n import _
 from belka.ui.icons import icon
@@ -620,14 +620,16 @@ class ProfileBrowserPanel(PanelBlock):
         return item
 
     def _leaf(self, parent: QTreeWidgetItem, profile: FilmProfile) -> QTreeWidgetItem:
-        item = QTreeWidgetItem(parent, [profile.name, ""])
+        name = display_name(profile)
+        item = QTreeWidgetItem(parent, [name, ""])
         item.setData(0, _ID_ROLE, profile.id)
-        words = [profile.name, profile.brand, profile.process, str(profile.iso or ""),
+        # Both names find it: the shown one and the original ("Generic" or "Genérico").
+        words = [name, profile.name, profile.brand, profile.process, str(profile.iso or ""),
                  _type_label(profile.type), profile.id]
         item.setData(0, _SEARCH_ROLE, _fold(" ".join(words)))
         iso = f"ISO {profile.iso}" if profile.iso else ""
         details = " · ".join(v for v in (profile.brand, profile.process, iso) if v)
-        item.setToolTip(0, "\n".join(v for v in (profile.name, details, profile.notes) if v))
+        item.setToolTip(0, "\n".join(v for v in (name, details, display_notes(profile)) if v))
         return item
 
     def _items(self, root: QTreeWidgetItem | None = None):

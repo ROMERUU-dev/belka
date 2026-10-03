@@ -49,7 +49,7 @@ from belka import APP_NAME, __version__
 from belka.camera.base import CameraInfo
 from belka.camera.worker import CameraController
 from belka.core import pipeline as pl
-from belka.core.film import FilmProfile, ProfileLibrary, film_name, slugify
+from belka.core.film import FilmProfile, ProfileLibrary, display_name, film_name, slugify
 from belka.core.history import HistoryStore
 from belka.core.rawio import SUPPORTED_EXTENSIONS, exif_summary
 from belka.core.session import Frame, Session
@@ -155,6 +155,8 @@ class MainWindow(QMainWindow):
         self._grid_on = False
         self._before_key: tuple | None = None
         self._last_failure: tuple[str, float] = ("", 0.0)
+        self._show_dust = False
+        self._last_dust: np.ndarray | None = None
         self._transform_dragging = False
         self._rotate_total = 0.0
         self._applying_history = False
@@ -165,9 +167,11 @@ class MainWindow(QMainWindow):
         self.live = LiveInverter(self)
 
         self._build_widgets()
+        self.capture_panel.load_capture_options(self.settings.get("capture"))
         self.flow = CaptureFlow(
             self.camera, self.light, lambda: self.session, self._show_light_color,
             self._light_visible, self._set_capturing, self, panel_ready=self._panel_ready,
+            set_pattern=self._set_light_pattern, darkfield_stops=self._darkfield_stops,
         )
         self._save_timer = QTimer(self)
         self._save_timer.setSingleShot(True)
@@ -497,6 +501,7 @@ class MainWindow(QMainWindow):
         cp.flatRequested.connect(self.capture_flat)
         cp.clearFlatsRequested.connect(self.clear_flats)
         cp.scaleRequested.connect(self.calibrate_scale)
+        cp.captureOptionsChanged.connect(lambda options: self.settings.set("capture", options))
         # Worker signals must reach bound methods of GUI objects: a lambda has no
         # thread affinity and would run on the camera thread.
         w.cameras_found.connect(self._on_cameras)
@@ -525,6 +530,8 @@ class MainWindow(QMainWindow):
         dp.autoToneRequested.connect(lambda: self.auto_tone())
         dp.autoFieldRequested.connect(lambda field: self.auto_tone((field,)))
         dp.gridToggled.connect(self._on_grid_toggled)
+        dp.dustMaskToggled.connect(self._on_dust_mask_toggled)
+        dp.edgeProfileRequested.connect(self._on_profile_chosen)
         dp.transformDragging.connect(self._on_transform_dragging)
         self.histogram.adjustRequested.connect(self._on_histogram_drag)
         self.histogram.dragFinished.connect(self._on_histogram_drag_finished)
@@ -804,6 +811,9 @@ class MainWindow(QMainWindow):
             if exif:
                 rows.append((_("Cámara"), exif.get("model", "")))
                 rows.append((_("Exposición"), exif_summary(exif)))
+            edge = f.edge if isinstance(f.edge, dict) else {}
+            if edge.get("film") or edge.get("frame"):
+                rows.append((_("Borde"), " · ".join(v for v in (edge.get("film", ""), edge.get("frame", "")) if v)))
             self.metadata.setText("<table cellspacing=4>" + "".join(
                 f"<tr><td style='color:#7a7a7a'>{k}</td><td>{v}</td></tr>" for k, v in rows) + "</table>")
 
@@ -919,6 +929,7 @@ class MainWindow(QMainWindow):
         settings = self.session.settings_for(frame)
         self.develop_panel.setEnabled(True)
         self.develop_panel.load(settings, self.session.lock_base)
+        self._show_frame_extras(frame)
         self.history.get(frame.id, settings, _("Abrir"))
         # Another frame's snapshot of the same name must not stay selected.
         self.snapshots_panel.list.clearSelection()
@@ -1107,7 +1118,7 @@ class MainWindow(QMainWindow):
             kind="render", session=self.session, frame=self.frame, settings=settings,
             profile=self.library.get(settings.profile_id), view=view,
             ignore_crop=tool in ("base", "neutral", "crop", "straighten", "guided"), max_side=1800,
-            crop_ratio=self._requested_ratio,
+            crop_ratio=self._requested_ratio, show_dust=self._show_dust,
         ))
 
     def _before_settings(self) -> pl.DevelopSettings:
@@ -1139,6 +1150,10 @@ class MainWindow(QMainWindow):
             return
         self._last_result = result
         self._last_rgb8 = result.rgb8
+        self._last_dust = result.dust
+        if result.darkfield_ok is False:
+            self.develop_panel.set_dust_source(
+                _("La toma de campo oscuro no coincide con este fotograma; el polvo se busca solo en la imagen."))
         self.view.set_image(result.image)
         self._last_analysis = result.analysis
         self.develop_panel.show_analysis(result.analysis)
@@ -1460,7 +1475,8 @@ class MainWindow(QMainWindow):
 
     def _on_profile_chosen(self, profile_id: str) -> None:
         if self.frame is not None:
-            self._apply(_("Película: {name}").format(name=self.library.get(profile_id).name), profile_id=profile_id)
+            self._apply(_("Película: {name}").format(name=film_name(self.library.get(profile_id))),
+                        profile_id=profile_id)
 
     def save_profile(self) -> None:
         if self.frame is None or self._last_analysis is None:
@@ -1468,10 +1484,10 @@ class MainWindow(QMainWindow):
             return
         settings = self._current_settings()
         base = self.library.get(settings.profile_id)
-        dialog = SaveProfileDialog(base.name, self)
+        dialog = SaveProfileDialog(display_name(base), self)
         if dialog.exec() != SaveProfileDialog.DialogCode.Accepted:
             return
-        name = dialog.name.text().strip() or base.name
+        name = dialog.name.text().strip() or display_name(base)
         profile_id = "user-" + slugify(name)
         if profile_id in self.library:
             if QMessageBox.question(
@@ -1566,6 +1582,46 @@ class MainWindow(QMainWindow):
             profile=self.library.get(settings.profile_id), mode=mode,
         ))
         self._message(_("Buscando líneas para enderezar…"))
+
+    # ---------------------------------------------------------------- dust and edge print
+    def _show_frame_extras(self, frame: Frame) -> None:
+        """What the panel says about this frame's dark-field shot and film edge; reads the edge once."""
+        self.develop_panel.set_dust_source(
+            _("Con toma de campo oscuro") if frame.darkfield
+            else _("Detección en la imagen (sin toma de campo oscuro)"))
+        edge = frame.edge if isinstance(frame.edge, dict) else {}
+        self.develop_panel.set_edge_info(edge if edge.get("film") or edge.get("frame") else None)
+        if not edge and self.session is not None:
+            settings = self.session.settings_for(frame)
+            self.develop.request(DevelopJob(
+                kind="edge", session=self.session, frame=frame, settings=settings,
+                profile=self.library.get(settings.profile_id),
+            ))
+
+    def _on_edge_read(self, result) -> None:
+        if self.session is None:
+            return
+        frame = self.session.frame(result.job.frame.id)
+        if frame is None:
+            return
+        frame.edge = result.value or {"found": False}  # read once per frame
+        self.session.save()
+        for strip in (self.filmstrip, self.grid):
+            strip.update_frame(frame)
+        if self.frame is not None and frame.id == self.frame.id:
+            self._show_frame_extras(frame)
+            self._update_metadata()
+            info = result.value or {}
+            if info.get("film") and info.get("profile_id") and info["profile_id"] != self._current_settings().profile_id:
+                self._message(_("En el borde de la película dice {film}: «Usar» en Perfil de película la aplica.").format(
+                    film=info["film"]))
+
+    def _on_dust_mask_toggled(self, on: bool) -> None:
+        self._show_dust = bool(on)
+        if not on:
+            self._last_dust = None
+            self._update_clipping_overlay()
+        self.request_render()
 
     # ---------------------------------------------------------------- context menus
     def _marks_menu(self, menu: QMenu) -> None:
@@ -1898,6 +1954,9 @@ class MainWindow(QMainWindow):
         ))
 
     def _on_sampled(self, result) -> None:
+        if result.job.kind == "edge":  # stored for any frame, current or not
+            self._on_edge_read(result)
+            return
         if self.frame is None or result.job.frame.id != self.frame.id:
             return
         if result.job.kind == "sample_base":
@@ -1974,7 +2033,8 @@ class MainWindow(QMainWindow):
         rgb8 = self._last_rgb8
         # The negative view is normalised to its own peak: it has no tonal clipping to show.
         negative = self._last_result is not None and self._last_result.job.view == "negative"
-        if rgb8 is None or negative or not (self._clip_shadows or self._clip_highlights):
+        dust = self._last_dust if self._show_dust else None
+        if rgb8 is None or negative or not (self._clip_shadows or self._clip_highlights or dust is not None):
             self.view.set_clipping_overlay(None)
             return
         from belka.core import adjust
@@ -1986,6 +2046,8 @@ class MainWindow(QMainWindow):
             overlay[shadows] = (40, 110, 255, 230)
         if self._clip_highlights:
             overlay[highlights] = (255, 50, 40, 230)
+        if dust is not None and dust.shape == overlay.shape[:2]:
+            overlay[dust] = (255, 40, 200, 210)  # what the dust removal repairs
         h, w = overlay.shape[:2]
         image = QImage(np.ascontiguousarray(overlay).data, w, h, w * 4, QImage.Format.Format_RGBA8888).copy()
         self.view.set_clipping_overlay(image)
@@ -2185,6 +2247,16 @@ class MainWindow(QMainWindow):
             self.panel.set_display_color(self.light.display_rgb())
         self.panel.show_on(self._screen_by_name(self.light.screen))
         self.inhibitor.start()
+
+    def _set_light_pattern(self, pattern: str) -> None:
+        """The light panel's backlight, or the dark-field ring of the dust shot (called on every step)."""
+        if self.panel is not None:
+            self.panel.set_pattern(pattern)
+
+    def _darkfield_stops(self) -> int:
+        """How much slower the dust shot is than the frame; 0 when it is off."""
+        cp = self.capture_panel
+        return cp.darkfield_stops() if cp.darkfield_enabled() else 0
 
     def _panel_ready(self) -> bool:
         """Safe to expose: the panel is in front, or alone on its own screen."""

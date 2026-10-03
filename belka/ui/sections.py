@@ -42,6 +42,7 @@ QLabel#rowLabel:disabled {{ color: #565656; }}
 QLabel#subHeading {{ color: {TEXT_BRIGHT}; font-size: 11px; }}
 QLabel#note {{ color: {TEXT_DIM}; font-size: 10px; }}
 QLabel#warning {{ color: #d9a441; font-size: 11px; }}
+QLabel#edgeInfo {{ color: {TEXT}; font-size: 11px; }}
 QLabel#fieldLabel {{ color: #a9a9a9; }}
 ValueField {{
     background: transparent; color: #cfcfcf; border: 1px solid transparent; border-radius: 2px;

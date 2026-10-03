@@ -32,13 +32,19 @@ automáticamente** con perfiles por película, con un módulo de revelado al est
   Transformar (Upright Auto/Nivel/Vertical/Completo, perspectiva vertical y horizontal, rotar, aspecto, escala,
   desplazamiento, restringir recorte) y Efectos (viñeta post-recorte y grano); navegador, perfiles de película con
   buscador, instantáneas, historial con deshacer/rehacer, copiar/pegar/sincronizar ajustes, estrellas y banderas.
+- **Polvo y rayones (0.4):** con la **toma antipolvo** la pantalla apaga la zona de la película y enciende un
+  anillo alrededor: solo brillan el polvo y los rayones, que el revelado borra rellenando con el grano de la propia
+  película. Sin esa toma, los busca en la imagen de forma conservadora. "Mostrar polvo detectado" marca lo que se
+  retoca.
+- **Lee el borde de la película (0.4):** el código de barras DX dice qué película es (con «Usar» para aplicar su
+  perfil) y el número de fotograma impreso, que la tira muestra junto al de la captura.
 - **Encuadre automático:** detecta el fotograma entre las perforaciones y lo recorta; al enderezar, el recorte se
   queda dentro del fotograma sin mostrar borde de película.
 - **Flat-field:** una foto de la luz sin película corrige el viñeteo del objetivo y la luz desigual de la pantalla.
 - **Rollos:** cada rollo es una carpeta con los RAW originales intactos, ajustes por fotograma, base común del rollo,
   "aplicar a todo el rollo" y perfiles propios guardados desde un rollo real.
-- **Exportación** a TIFF de 16 bits y JPEG con perfil ICC sRGB, o "plana lineal" para seguir editando en darktable o
-  RawTherapee.
+- **Exportación** a TIFF de 16 bits y JPEG con perfil ICC sRGB, o salida "lineal plana" (sin curva ni ajustes de
+  tono o color) para revelar en darktable o RawTherapee.
 - **Clic derecho** en la foto y en la tira: herramientas, ajustes, calificación y marcas, exportar, mostrar en la
   carpeta, **quitar del rollo** o **eliminar del disco** (a la papelera, recuperable) y **eliminar las rechazadas**
   de una vez: las capturas fallidas se marcan con X y se borran con Ctrl+Retroceso.

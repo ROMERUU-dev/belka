@@ -563,6 +563,68 @@ STRINGS: dict[str, str] = {
     "Obsoleto": "Deprecated",
     "Imágenes": "Images",
     "No hay luz en esta foto: no hay tono que ajustar.": "There is no light in this photo: no tone to adjust.",
+    # 0.4: dust and scratches, dust shot, film edge
+    "Polvo y rayones": "Dust & Scratches",
+    "Quitar polvo": "Remove dust",
+    "0 = apagado. Retoca el polvo y los rayones del negativo antes de invertirlo; con una toma de campo oscuro los encuentra mejor.\nSin ella, por encima de 50 puede borrar luces pequeñas de la foto (estrellas, brillos en los ojos).":
+        "0 = off. Retouches dust and scratches on the negative before inverting it; a dark-field shot finds them better.\nWithout one, above 50 it can erase small highlights in the photo (stars, catchlights).",
+    "Mostrar polvo detectado": "Show detected dust",
+    "Marca en la foto lo que se retoca": "Marks on the photo what gets retouched",
+    "Con toma de campo oscuro": "With a dark-field shot",
+    "Detección en la imagen (sin toma de campo oscuro)": "Found in the image (no dark-field shot)",
+    "La toma de campo oscuro no coincide con este fotograma; el polvo se busca solo en la imagen.":
+        "The dark-field shot does not match this frame; dust is searched for in the image alone.",
+    "La toma de campo oscuro mide {dw}×{dh} px y el fotograma {fw}×{fh} px.":
+        "The dark-field shot is {dw}×{dh} px and the frame {fw}×{fh} px.",
+    "Usar": "Use",
+    "Borde": "Edge",
+    "Borde: {text}": "Edge: {text}",
+    "fotograma {number}": "frame {number}",
+    "Leído en el código DX del borde de la película": "Read from the DX barcode on the film edge",
+    "confianza {percent} %": "confidence {percent}%",
+    "Usar el perfil {name}": "Use the {name} profile",
+    "En el borde de la película dice {film}: «Usar» en Perfil de película la aplica.":
+        "The film edge says {film}: “Use” in Film Profile applies it.",
+    "Toma antipolvo (campo oscuro)": "Dust shot (dark field)",
+    "Tras cada fotograma, otra toma con la película a oscuras y un anillo de luz alrededor: solo brillan el polvo y los rayones, y el revelado los borra. Necesita el panel de luz.":
+        "After each frame, one more shot with the film dark and a ring of light around it: only dust and scratches glow, and Develop removes them. Needs the light panel.",
+    "pasos": "stops",
+    "Cuánto más lenta que la del fotograma es la velocidad de la toma antipolvo":
+        "How many stops slower than the frame the dust shot is exposed",
+    "La toma antipolvo necesita el panel de luz encendido: se omitió.":
+        "The dust shot needs the light panel on: it was skipped.",
+    "Belka no puede cambiar la velocidad de esta cámara: la toma antipolvo se hace con la de siempre.":
+        "Belka cannot change this camera's shutter speed: the dust shot uses the current one.",
+    "Falló la toma antipolvo: {msg}. El fotograma se guardó sin ella.":
+        "The dust shot failed: {msg}. The frame was saved without it.",
+    "No se encuentra el archivo de este fotograma (¿se borró o movió?). Quítalo del rollo con Supr.":
+        "This frame's file cannot be found (was it deleted or moved?). Remove it from the roll with Del.",
+    "No se pudo terminar de quitar los fotogramas: {msg}": "The frames could not all be removed: {msg}",
+    # Built-in film profiles: names and notes (belka/data/profiles)
+    "Genérico C-41": "Generic C-41",
+    "Punto de partida para cualquier negativo color C-41.": "A starting point for any C-41 colour negative.",
+    "Genérico ECN-2 (cine)": "Generic ECN-2 (motion picture)",
+    "Negativo de cine revelado en ECN-2 sin remjet: menor contraste y base más densa.":
+        "Motion-picture negative developed in ECN-2 without remjet: lower contrast and a denser base.",
+    "Saturación baja y tonos de piel suaves.": "Low saturation and soft skin tones.",
+    "Latitud amplia; tolera bien la sobreexposición.": "Wide latitude; handles overexposure well.",
+    "Grano muy fino, contraste y saturación altos.": "Very fine grain, high contrast and saturation.",
+    "Paleta cálida de consumo.": "Warm consumer palette.",
+    "Balanceada a tungsteno (3200 K): a la luz del día sale azulada y el auto-balance lo compensa.":
+        "Tungsten balanced (3200 K): in daylight it comes out bluish and auto-balance corrects it.",
+    "Cuarta capa sensible al cian; sombras con tendencia al verde.": "Fourth cyan-sensitive layer; shadows lean green.",
+    "Emulsión de origen Kodak; se comporta parecido a Gold 200.": "A Kodak-made emulsion; behaves much like Gold 200.",
+    "Descontinuada; tonos pastel.": "Discontinued; pastel tones.",
+    "Vision3 500T sin remjet: halos rojos en las luces y balance a tungsteno.":
+        "Vision3 500T without remjet: red halos around highlights and tungsten balance.",
+    "Máscara naranja débil, contraste alto y mucha halación por diseño.":
+        "Weak orange mask, high contrast and heavy halation by design.",
+    "Genérico B/N": "Generic B&W",
+    "Cualquier negativo blanco y negro de plata.": "Any silver black-and-white negative.",
+    "Cromógena: revelado C-41, base ligeramente violácea.": "Chromogenic: C-41 process, slightly violet base.",
+    "Genérico diapositiva E-6": "Generic E-6 slide",
+    "Cualquier película reversible (positivo).": "Any reversal (positive) film.",
+    "Muy saturada y contrastada.": "Very saturated and contrasty.",
 }
 
 HELP_HTML = """

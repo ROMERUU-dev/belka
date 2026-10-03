@@ -96,7 +96,7 @@ def panel(app, library):
     p.settingsChanged.connect(p.changes.append)
     p.editCommitted.connect(p.commits.append)
     for name in ("toolRequested", "uprightRequested", "lockBaseChanged", "autoFieldRequested", "gridToggled",
-                 "transformDragging"):
+                 "transformDragging", "dustMaskToggled", "edgeProfileRequested"):
         getattr(p, name).connect(lambda v, n=name: p.signals.append((n, v)))
     for name in ("applyAllRequested", "saveProfileRequested", "resetRequested", "previousRequested",
                  "autoToneRequested"):
@@ -870,7 +870,7 @@ def test_flat_output_greys_out_what_it_does_not_apply(panel, library):
         section = panel.sections.section(key)
         assert not section.is_available() and not section.notice.isHidden(), key
         assert not section.header.switch.isEnabled()
-    for key in ("film", "basic", "lens", "transform"):
+    for key in ("film", "basic", "lens", "transform", "dust"):
         assert panel.sections.section(key).is_available(), key
     # "Usar impresión" puts everything back, as one history step.
     panel.flat_print.click()
@@ -1184,3 +1184,142 @@ def test_wheel_scrolls_past_combos_and_spin_boxes_even_focused(app, request):
     before = bar.value()
     wheel(slider)
     assert bar.value() == before and slider.value() != 50
+
+
+# ---------------------------------------------------------------- 0.4: dust and the film edge
+
+ULTRAMAX_EDGE = {"film": "Kodak UltraMax 400", "profile_id": "kodak-ultramax-400", "frame": "22",
+                 "confidence": 0.86}
+
+
+def test_dust_section_follows_the_film_profile(panel):
+    assert panel.sections.keys()[:3] == ["film", "dust", "basic"]
+    section = panel.sections.section("dust")
+    assert section.title == "Polvo y rayones" and section.header.switch is not None
+    row = panel.rows["dust_strength"]
+    assert row.parent() is section.controls and row.label.text() == "Quitar polvo"
+    assert row.text() == "0" and panel.settings.dust_strength == 0.0  # off until asked for
+
+
+def test_dust_slider_shows_0_to_100_and_names_its_history_step(panel):
+    row = panel.rows["dust_strength"]
+    assert row.mapping.display_range() == (0.0, 100.0)
+    row.slider.pressed.emit()
+    row.set_display(40)
+    row.slider.released.emit()
+    assert panel.settings.dust_strength == pytest.approx(0.4)
+    assert panel.commits == ["Quitar polvo 40"]
+    row.set_display(250)  # clamped to the range
+    assert panel.settings.dust_strength == pytest.approx(1.0) and row.text() == "100"
+    panel.load(DevelopSettings(dust_strength=0.25), lock_base=False)
+    assert row.text() == "25"
+
+
+def test_dust_switch_writes_disabled(panel):
+    switch = panel.sections.section("dust").header.switch
+    switch.click()
+    assert panel.settings.disabled == ("dust",)
+    assert panel.commits == ["Desactivar Polvo y rayones"]
+    switch.click()
+    assert panel.settings.disabled == () and panel.commits[-1] == "Activar Polvo y rayones"
+    panel.load(DevelopSettings(dust_strength=0.5, disabled=("dust",)), lock_base=False)
+    assert not panel.sections.section("dust").is_active()
+    assert panel.rows["dust_strength"].text() == "50"  # the strength is kept while it is off
+
+
+def test_resetting_dust_restores_only_its_strength(panel):
+    panel.apply_external(dust_strength=0.7, exposure=0.5, disabled=("dust",))
+    section = panel.sections.section("dust")
+    title = section.header.title.geometry().center()
+    double_click(section.header, title.x(), title.y())
+    s = panel.settings
+    assert (s.dust_strength, s.exposure, s.disabled) == (0.0, 0.5, ("dust",))
+    assert section.is_expanded() and panel.rows["dust_strength"].text() == "0"
+    assert panel.commits == ["Restablecer Polvo y rayones"]
+    panel.reset_section("dust")  # nothing left: no empty history step
+    assert panel.commits == ["Restablecer Polvo y rayones"]
+
+
+def test_dust_mask_checkbox_is_view_state(panel):
+    box = panel.show_dust
+    assert box.text() == "Mostrar polvo detectado" and not box.isChecked()
+    box.click()
+    box.click()
+    assert panel.signals == [("dustMaskToggled", True), ("dustMaskToggled", False)]
+    panel.set_dust_mask_checked(True)
+    assert box.isChecked() and len(panel.signals) == 2
+    panel.load(DevelopSettings(dust_strength=0.3), lock_base=False)
+    assert box.isChecked()
+    assert panel.changes == [] and panel.commits == []
+
+
+def test_dust_source_line_is_set_by_the_window(panel):
+    note = panel.dust_source
+    assert note.isHidden()
+    panel.set_dust_source("Con toma de campo oscuro")
+    assert not note.isHidden() and note.text() == "Con toma de campo oscuro"
+    assert note.parent() is panel.sections.section("dust").controls
+    panel.set_dust_source("")
+    assert note.isHidden()
+    assert panel.changes == [] and panel.commits == []
+
+
+def test_edge_row_shows_what_the_film_edge_says(panel):
+    assert panel.edge_row.isHidden()
+    panel.set_edge_info(ULTRAMAX_EDGE)
+    assert not panel.edge_row.isHidden()
+    # The frame number never wraps away from "fotograma".
+    assert panel.edge_label.text() == "Borde: Kodak UltraMax 400 · fotograma\u00a022"
+    assert "confianza 86 %" in panel.edge_label.toolTip()
+    assert panel.edge_row.parent() is panel.sections.section("film").controls
+    for info in (None, {}, {"found": False}):
+        panel.set_edge_info(info)
+        assert panel.edge_row.isHidden(), info
+    panel.set_edge_info({"film": "", "profile_id": None, "frame": "21A", "confidence": 0.5})
+    assert panel.edge_label.text() == "Borde: fotograma\u00a021A" and panel.edge_use.isHidden()
+    # A DX code not in the table still says what was read.
+    panel.set_edge_info({"dx": "0999", "film": "", "profile_id": None, "frame": "", "confidence": 0.4})
+    assert panel.edge_label.text() == "Borde: DX 0999"
+    assert panel.changes == [] and panel.commits == []
+
+
+def test_use_button_asks_for_the_edge_film_only_when_it_differs(panel):
+    panel.set_edge_info(ULTRAMAX_EDGE)
+    use = panel.edge_use
+    assert not use.isHidden() and use.text() == "Usar"
+    assert "Kodak UltraMax 400" in use.toolTip()
+    use.click()
+    # The panel only asks: the window applies the film and names the history step.
+    assert panel.signals == [("edgeProfileRequested", "kodak-ultramax-400")]
+    assert panel.settings.profile_id == "generic-c41" and panel.changes == [] and panel.commits == []
+    panel.apply_external(profile_id="kodak-ultramax-400")  # what the window does
+    assert use.isHidden() and not panel.edge_row.isHidden()
+    combo = panel.profile_combo
+    combo.activated.emit(combo.findData("kodak-gold-200"))
+    assert not use.isHidden()
+    panel.load(DevelopSettings(profile_id="kodak-ultramax-400"), lock_base=False)  # the edge info stays
+    assert use.isHidden() and not panel.edge_row.isHidden()
+    # A profile that does not exist (a deleted user profile) is never offered.
+    panel.set_edge_info({**ULTRAMAX_EDGE, "profile_id": "user-gone"})
+    assert use.isHidden()
+    assert panel.edge_label.text().startswith("Borde: Kodak UltraMax 400")
+
+
+def test_film_and_dust_fit_the_narrowest_dock(app, panel):
+    panel.sections.set_all_expanded(False)
+    for key in ("film", "dust"):
+        panel.sections.section(key).set_expanded(True)
+    panel.set_edge_info(ULTRAMAX_EDGE)
+    panel.set_dust_source("Detección en la imagen (sin toma de campo oscuro)")
+    panel.resize(300, 800)
+    for _ in range(3):  # wrapped labels settle their height over a couple of layout passes
+        app.processEvents()
+    body = panel.sections.section("film").body
+    use = panel.edge_use.geometry().translated(panel.edge_row.pos())
+    label = panel.edge_label
+    assert body.rect().contains(use) and label.height() >= label.heightForWidth(label.width())  # not clipped
+    assert not panel.edge_use.geometry().intersects(panel.edge_label.geometry())
+    dust = panel.sections.section("dust").body
+    assert dust.rect().contains(panel.dust_source.geometry())
+    assert dust.rect().contains(panel.show_dust.geometry())
+    assert panel.horizontalScrollBar().maximum() == 0

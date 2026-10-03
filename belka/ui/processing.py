@@ -11,10 +11,12 @@ possible:
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 from collections import OrderedDict
 from dataclasses import dataclass, field, replace
 
+import cv2
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 from PySide6.QtGui import QImage
@@ -22,7 +24,7 @@ from PySide6.QtGui import QImage
 from belka.core import develop as dv
 from belka.core import pipeline as pl
 from belka.core.film import FilmProfile
-from belka.core.rawio import LinearImage
+from belka.core.rawio import LinearImage, load_linear
 from belka.core.session import Frame, Session, load_frame
 
 PREVIEW_SIDE = 2000
@@ -49,6 +51,7 @@ class DevelopJob:
     # Width/height the crop tool is locked to (None: free); sizes its bounds.
     crop_ratio: float | None = None
     fields: tuple[str, ...] | None = None  # auto tone: the sliders to set (None: all)
+    show_dust: bool = False  # render: also return the dust mask on the displayed image
     token: int = field(default_factory=lambda: next(_tokens))
 
 
@@ -64,6 +67,8 @@ class DevelopResult:
     rgb8: np.ndarray | None = None
     crop: tuple | None = None  # effective crop in the warped image (for the crop tool)
     valid: tuple | None = None  # largest valid rect of the warp (crop bounds)
+    dust: np.ndarray | None = None  # bool mask on the displayed image (render with show_dust)
+    darkfield_ok: bool | None = None  # False: the frame's dark-field shot did not match, the image alone was searched
 
 
 def _stamp(path) -> tuple:
@@ -95,6 +100,8 @@ class DevelopWorker(QObject):
         self._images: OrderedDict[tuple, LinearImage] = OrderedDict()
         self._analyses: OrderedDict[tuple, pl.Analysis] = OrderedDict()
         self._warped: OrderedDict[tuple, tuple] = OrderedDict()
+        self._cleaned: OrderedDict[tuple, tuple] = OrderedDict()
+        self._darkfields: OrderedDict[tuple, np.ndarray] = OrderedDict()
         self._inverted: OrderedDict[tuple, np.ndarray] = OrderedDict()
 
     @staticmethod
@@ -120,6 +127,58 @@ class DevelopWorker(QObject):
         image = load_frame(session, frame, half_size=True, max_side=None if detail else PREVIEW_SIDE)
         self._remember(self._images, key, image, 8)
         return image
+
+    @staticmethod
+    def _dust_key(job: DevelopJob) -> tuple:
+        s = job.settings
+        on = s.dust_strength > 0 and s.section_on("dust")
+        darkfield = _stamp(job.session.resolve(job.frame.darkfield)) if on and job.frame.darkfield else None
+        return (round(float(s.dust_strength), 4), darkfield) if on else ()
+
+    def _darkfield(self, job: DevelopJob, shape: tuple) -> np.ndarray | None:
+        """The frame's dark-field shot at ``shape``, decoded once: a strength drag must not re-read the raw."""
+        if not job.frame.darkfield:
+            return None
+        path = job.session.resolve(job.frame.darkfield)
+        if not path.is_file():
+            return None
+        key = (str(path), _stamp(path), shape)
+        if key in self._darkfields:
+            self._darkfields.move_to_end(key)
+            return self._darkfields[key]
+        # Never through load_frame: no flat, its light comes from the ring around the film.
+        darkfield = dv.match_size(load_linear(path, half_size=True).rgb, shape)
+        self._remember(self._darkfields, key, darkfield, 2)
+        return darkfield
+
+    def _dust(self, job: DevelopJob, image: LinearImage,
+              analysis: pl.Analysis) -> tuple[LinearImage, np.ndarray | None, bool | None, str]:
+        """Dust and scratches removed from the capture before anything else, so every
+        later stage (geometry, inversion, export) sees the clean film. Also says
+        whether the dark-field shot could be used (None: there is none), and
+        names what was repaired: the later stages are cached by that name, so a
+        strength step that repairs the same pixels redoes none of them."""
+        dust_key = self._dust_key(job)
+        if not dust_key:
+            return image, None, None, ""
+        key = (self._image_key(job.session, job.frame), image.rgb.shape, dust_key)
+        if key in self._cleaned:
+            self._cleaned.move_to_end(key)
+            return self._cleaned[key]
+        from belka.core import dust
+
+        darkfield = self._darkfield(job, image.rgb.shape)
+        repaired, mask = dust.remove_dust(image.rgb, darkfield, job.settings.dust_strength, analysis)
+        matches = None if darkfield is None else dust.darkfield_matches(image.rgb, darkfield, analysis)
+        if mask.any():
+            # The repair is a function of the mask alone.
+            repaired_id = hashlib.blake2b(np.packbits(mask).tobytes(), digest_size=12).hexdigest()
+            image = LinearImage(rgb=repaired, camera_matrix=image.camera_matrix, meta=dict(image.meta))
+        else:
+            repaired_id = ""
+        entry = (image, mask, matches, repaired_id)
+        self._remember(self._cleaned, key, entry, 3)
+        return entry
 
     def _source(self, job: DevelopJob, preview: LinearImage, analysis: pl.Analysis) -> LinearImage:
         """The preview, or the sharper native decode when the crop would be shown enlarged."""
@@ -147,15 +206,15 @@ class DevelopWorker(QObject):
         self._remember(self._analyses, key, analysis, 32)
         return analysis
 
-    def _geometry(self, job: DevelopJob, image: LinearImage, analysis: pl.Analysis) -> tuple:
+    def _geometry(self, job: DevelopJob, image: LinearImage, analysis: pl.Analysis, repaired_id: str) -> tuple:
         """Warped picture, the crop it gets and the crop tool's bounds.
 
         Lens correction and the warp take ~70 ms on a preview; dragging an
         adjustment slider must not redo them.
         """
         s = job.settings
-        key = (self._image_key(job.session, job.frame), image.rgb.shape, s.geometry_key(), s.analysis_key(),
-               s.crop_aspect, s.constrain_crop, repr(job.profile), job.crop_ratio)
+        key = (self._image_key(job.session, job.frame), image.rgb.shape, repaired_id, s.geometry_key(),
+               s.analysis_key(), s.crop_aspect, s.constrain_crop, repr(job.profile), job.crop_ratio)
         if key in self._warped:
             self._warped.move_to_end(key)
             return self._warped[key]
@@ -189,9 +248,19 @@ class DevelopWorker(QObject):
 
         if job.kind == "upright":
             return DevelopResult(job=job, value=self._upright(job, preview, analysis))
-        image = self._source(job, preview, analysis)
+        if job.kind == "edge":
+            from dataclasses import asdict
 
-        warped, real_crop, valid = self._geometry(job, image, analysis)
+            from belka.core import edgeprint
+
+            # The analysis (and its frame) is measured on the oriented image.
+            s = job.settings
+            oriented = np.ascontiguousarray(pl.orient(preview.rgb, s.rotation, s.flip_h, s.flip_v))
+            info = edgeprint.read_edge(oriented, analysis)
+            return DevelopResult(job=job, value=asdict(info) if info is not None else None)
+        image, dust_mask, darkfield_ok, repaired_id = self._dust(job, self._source(job, preview, analysis), analysis)
+
+        warped, real_crop, valid = self._geometry(job, image, analysis, repaired_id)
         if job.kind == "auto_tone":
             from belka.core import autotone
 
@@ -218,7 +287,7 @@ class DevelopWorker(QObject):
             # The crop actually applied: the tools' uncropped view and the normal
             # cropped one can share every setting.
             key = (self._image_key(job.session, job.frame), image.rgb.shape, repr(dv.adjust_free(view_settings)),
-                   job.max_side, crop, repr(job.profile))
+                   job.max_side, crop, repr(job.profile), repaired_id)
             display = self._inverted.get(key)
             if display is None:
                 small = pl.downsample(geo, job.max_side)
@@ -234,6 +303,16 @@ class DevelopWorker(QObject):
             if settings.output == "flat":
                 out = pl.srgb_encode(out)
         rgb8 = pl.to_uint8(out)
+        shown_dust = None
+        if job.show_dust and dust_mask is not None and job.view == "positive" and not dust_mask.any():
+            shown_dust = np.zeros(rgb8.shape[:2], dtype=bool)
+        elif job.show_dust and dust_mask is not None and job.view == "positive":
+            # The mask through the same orientation, warp and crop as the picture.
+            m = dv.geometry(dust_mask.astype(np.float32), view_settings if job.ignore_crop else settings, analysis,
+                            apply_crop=False)
+            if crop is not None:
+                m = m[pl.crop_slices(m.shape, crop)]
+            shown_dust = cv2.resize(m, (rgb8.shape[1], rgb8.shape[0]), interpolation=cv2.INTER_AREA) > 0.05
         return DevelopResult(
             job=job,
             image=array_to_qimage(rgb8),
@@ -243,6 +322,8 @@ class DevelopWorker(QObject):
             rgb8=rgb8 if job.kind == "render" else None,
             crop=real_crop,
             valid=valid,
+            dust=shown_dust,
+            darkfield_ok=darkfield_ok,
         )
 
     @staticmethod

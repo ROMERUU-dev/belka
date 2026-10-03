@@ -1,8 +1,9 @@
 """Right-hand develop panel, in the manner of Lightroom Classic.
 
 Sections, top to bottom: Perfil de película (Belka's own: the inversion),
-Básico, Curva de tonos, HSL / Color, Gradación de color, Detalle, Óptica,
-Transformar and Efectos, then Lightroom's "Anterior · Restablecer" bar.
+Polvo y rayones (also Belka's: it works on the negative), Básico, Curva de
+tonos, HSL / Color, Gradación de color, Detalle, Óptica, Transformar and
+Efectos, then Lightroom's "Anterior · Restablecer" bar.
 
 Sliders show Lightroom units and store the model's (the ``Mapping``
 constants below say how); every change emits ``settingsChanged`` and every
@@ -31,7 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from belka.core.film import FilmProfile, ProfileLibrary, film_name
+from belka.core.film import FilmProfile, ProfileLibrary, display_notes, film_name
 from belka.core.pipeline import Analysis, DevelopSettings
 from belka.i18n import _
 from belka.ui.curve_editor import CHANNELS, ToneCurveEditor
@@ -81,13 +82,15 @@ TONE_FIELDS = ("exposure", "contrast", "highlights", "shadows", "white", "black"
 # curve and none of the tone and colour work done on the print. These
 # Básico sliders and these whole panels do nothing there, so they go grey.
 FLAT_IGNORED_FIELDS = ("contrast", "highlights", "shadows", "texture", "clarity", "vibrance", "saturation")
-FLAT_IGNORED_SECTIONS = ("curve", "hsl", "grading", "detail", "effects")# The Transformar sliders; resetting them also forgets the Upright mode and guides that set them.
+FLAT_IGNORED_SECTIONS = ("curve", "hsl", "grading", "detail", "effects")
+# The Transformar sliders; resetting them also forgets the Upright mode and guides that set them.
 TRANSFORM_FIELDS = ("angle", "persp_vertical", "persp_horizontal", "persp_rotate", "persp_aspect", "persp_scale",
                     "persp_x", "persp_y", "upright_mode", "upright_guides")
 
 # Fields each panel resets (double-click on its title).
 SECTION_FIELDS: dict[str, tuple[str, ...]] = {
     "film": ("auto_balance", "separation"),
+    "dust": ("dust_strength",),
     "basic": ("temperature", "tint", "neutral", *TONE_FIELDS, "texture", "clarity", "vibrance", "saturation"),
     "curve": ("curve_highlights", "curve_lights", "curve_darks", "curve_shadows", "curve_splits",
               "curve_rgb", "curve_red", "curve_green", "curve_blue"),
@@ -101,12 +104,12 @@ SECTION_FIELDS: dict[str, tuple[str, ...]] = {
                 "grain_size", "grain_roughness"),
 }
 SECTION_TITLES = {
-    "film": "Perfil de película", "basic": "Básico", "curve": "Curva de tonos", "hsl": "HSL / Color",
-    "grading": "Gradación de color", "detail": "Detalle", "lens": "Óptica", "transform": "Transformar",
-    "effects": "Efectos",
+    "film": "Perfil de película", "dust": "Polvo y rayones", "basic": "Básico", "curve": "Curva de tonos",
+    "hsl": "HSL / Color", "grading": "Gradación de color", "detail": "Detalle", "lens": "Óptica",
+    "transform": "Transformar", "effects": "Efectos",
 }
 # Panels with an on/off switch; the key is what goes in ``DevelopSettings.disabled``.
-SWITCHED = ("curve", "hsl", "grading", "detail", "lens", "transform", "effects")
+SWITCHED = ("dust", "curve", "hsl", "grading", "detail", "lens", "transform", "effects")
 EXPANDED_AT_START = ("film", "basic")
 PARAMETRIC = ("curve_highlights", "curve_lights", "curve_darks", "curve_shadows", "curve_splits")
 
@@ -153,6 +156,8 @@ class DevelopPanel(QScrollArea):
     autoToneRequested = Signal()  # "Auto" beside Tono
     autoFieldRequested = Signal(str)  # Shift+double-click on a TONE_FIELDS row
     gridToggled = Signal(bool)  # "Mostrar cuadrícula" (view state, not a setting)
+    dustMaskToggled = Signal(bool)  # "Mostrar polvo detectado" (view state, not a setting)
+    edgeProfileRequested = Signal(str)  # "Usar" beside what the film's edge says: that profile id
     transformDragging = Signal(bool)  # a Transformar or Óptica slider is held (True) or let go
     lockBaseChanged = Signal(bool)
     applyAllRequested = Signal()
@@ -170,6 +175,7 @@ class DevelopPanel(QScrollArea):
         self.library = library
         self._settings = DevelopSettings()
         self._analysis: Analysis | None = None
+        self._edge: dict | None = None
         self.rows: dict[str, SliderRow] = {}
         self._bindings: dict[str, tuple[str, int | None]] = {}
         self._grade_start: tuple | None = None
@@ -190,6 +196,7 @@ class DevelopPanel(QScrollArea):
         self.setWidget(self.sections)
 
         self._build_film(self.sections.section("film"))
+        self._build_dust(self.sections.section("dust"))
         self._build_basic(self.sections.section("basic"))
         self._build_curve(self.sections.section("curve"))
         self._build_hsl(self.sections.section("hsl"))
@@ -299,6 +306,22 @@ class DevelopPanel(QScrollArea):
         self.profile_notes.setWordWrap(True)
         self.profile_notes.setIndent(2)
         sec.add(self.profile_notes)
+        self.edge_row = QWidget()
+        row = QHBoxLayout(self.edge_row)
+        row.setContentsMargins(0, 2, 0, 2)
+        row.setSpacing(6)
+        self.edge_label = QLabel()
+        self.edge_label.setObjectName("edgeInfo")
+        self.edge_label.setWordWrap(True)
+        self.edge_label.setIndent(2)
+        self.edge_use = QToolButton()
+        self.edge_use.setObjectName("textButton")
+        self.edge_use.setText(_("Usar"))
+        self.edge_use.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.addWidget(self.edge_label, 1)
+        row.addWidget(self.edge_use, 0, Qt.AlignmentFlag.AlignTop)
+        self.edge_row.hide()
+        sec.add(self.edge_row)
         self.output_combo = QComboBox()
         self.output_combo.addItem(_("Impresión (curva de papel)"), "print")
         self.output_combo.addItem(_("Lineal plana (para otro programa)"), "flat")
@@ -358,6 +381,7 @@ class DevelopPanel(QScrollArea):
         sec.add(row)
 
         self.profile_combo.activated.connect(self._on_profile)
+        self.edge_use.clicked.connect(self._on_edge_use)
         self.output_combo.activated.connect(self._on_output)
         self.auto_crop.clicked.connect(self._on_auto_crop)
         self.base_pick.clicked.connect(lambda: self.toolRequested.emit("base"))
@@ -373,6 +397,23 @@ class DevelopPanel(QScrollArea):
         row.addWidget(self._field_label(text))
         row.addWidget(widget, 1)
         return row
+
+    def _build_dust(self, sec: Section) -> None:
+        self._slider(sec, "dust_strength", _("Quitar polvo"), UNIT, tooltip=_(
+            "0 = apagado. Retoca el polvo y los rayones del negativo antes de invertirlo; "
+            "con una toma de campo oscuro los encuentra mejor.\nSin ella, por encima de 50 puede borrar "
+            "luces pequeñas de la foto (estrellas, brillos en los ojos)."))
+        self.dust_source = QLabel()
+        self.dust_source.setObjectName("note")
+        self.dust_source.setWordWrap(True)
+        self.dust_source.setIndent(2)
+        self.dust_source.hide()
+        sec.add(self.dust_source)
+        sec.add_spacing(2)
+        self.show_dust = CheckBox(_("Mostrar polvo detectado"))
+        self.show_dust.setToolTip(_("Marca en la foto lo que se retoca"))
+        sec.add(self.show_dust)
+        self.show_dust.clicked.connect(self.dustMaskToggled)
 
     def _build_basic(self, sec: Section) -> None:
         self.flat_note = QWidget()
@@ -724,6 +765,20 @@ class DevelopPanel(QScrollArea):
         """Show the grid state the window keeps, without emitting ``gridToggled``."""
         self.show_grid.setChecked(on)
 
+    def set_dust_mask_checked(self, on: bool) -> None:
+        """Show the dust-mask state the window keeps, without emitting ``dustMaskToggled``."""
+        self.show_dust.setChecked(on)
+
+    def set_dust_source(self, text: str) -> None:
+        """Where the dust is found for this frame (dark-field shot or the image itself)."""
+        self.dust_source.setText(text)
+        self.dust_source.setVisible(bool(text))
+
+    def set_edge_info(self, info: dict | None) -> None:
+        """What was read on this frame's film edge (keys film, profile_id, frame, confidence), or None."""
+        self._edge = dict(info) if info else None
+        self._refresh_edge()
+
     def get_state(self) -> dict:
         """What is folded and which tabs are shown, for the window to remember."""
         state = self.sections.get_state()
@@ -780,6 +835,7 @@ class DevelopPanel(QScrollArea):
         self.neutral_clear.setVisible(any(s.neutral))
         self._refresh_profile_info()
         self._refresh_base()
+        self._refresh_edge()
 
     def _refresh_output(self) -> None:
         """The flat output leaves out the print's tone and colour work: grey out what does nothing there."""
@@ -826,7 +882,7 @@ class DevelopPanel(QScrollArea):
             parts.append(_("perfil propio"))
         text = " · ".join(parts)
         if profile.notes:
-            text += "\n" + profile.notes
+            text += "\n" + display_notes(profile)
         self.profile_notes.setText(text)
         color = not profile.is_bw
         for widget in (self.rows["temperature"], self.rows["tint"], self.neutral_pick, self.neutral_clear,
@@ -834,6 +890,34 @@ class DevelopPanel(QScrollArea):
             widget.setEnabled(color)
         self.separation.setEnabled(color and not self.separation_profile.isChecked())
         self._refresh_flat_rows()
+
+    def _edge_profile(self) -> str | None:
+        """The profile the edge names, if it exists and the frame uses another one."""
+        profile_id = (self._edge or {}).get("profile_id")
+        if not profile_id or profile_id == self._settings.profile_id or self.profile_combo.findData(profile_id) < 0:
+            return None
+        return profile_id
+
+    def _refresh_edge(self) -> None:
+        info = self._edge or {}
+        # A DX code missing from the table still says what was read.
+        film = info.get("film") or (f"DX {info['dx']}" if info.get("dx") else "")
+        parts = [film] if film else []
+        if info.get("frame"):
+            # Kept on one line: "fotograma" wrapped away from its number reads badly.
+            parts.append(_("fotograma {number}").format(number=info["frame"]).replace(" ", "\u00a0"))
+        self.edge_row.setVisible(bool(parts))
+        if not parts:
+            return
+        self.edge_label.setText(_("Borde: {text}").format(text=" · ".join(parts)))
+        tip = _("Leído en el código DX del borde de la película")
+        if info.get("confidence") is not None:
+            tip += " · " + _("confianza {percent} %").format(percent=round(100 * float(info["confidence"])))
+        self.edge_label.setToolTip(tip)
+        use = self._edge_profile()
+        self.edge_use.setVisible(use is not None)
+        if use is not None:
+            self.edge_use.setToolTip(_("Usar el perfil {name}").format(name=film_name(self.library.get(use))))
 
     def _refresh_parametric(self) -> None:
         s = self._settings
@@ -939,10 +1023,17 @@ class DevelopPanel(QScrollArea):
         self._settings = self._settings.copy(profile_id=profile_id)
         profile = self.current_profile()
         self._refresh_profile_info()
+        self._refresh_edge()
         self.separation.default = profile.separation
         if self.separation_profile.isChecked():
             self.separation.set_value(profile.separation)
         self._change(_("Película: {name}").format(name=film_name(profile)))
+
+    def _on_edge_use(self) -> None:
+        # Only asks: the window applies the film and names the history step.
+        profile_id = self._edge_profile()
+        if profile_id is not None:
+            self.edgeProfileRequested.emit(profile_id)
 
     def _on_output(self, index: int) -> None:
         self._set_output(self.output_combo.itemData(index))

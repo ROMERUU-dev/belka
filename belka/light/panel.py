@@ -4,6 +4,11 @@ Shown full screen on whichever monitor the film sits on. Everything outside
 the lit rectangle stays black so it cannot flare into the lens; guides, marks
 and the HUD are drawn dim and disappear while the camera is exposing.
 
+The dark-field pattern turns this around for the dust shot: the film area
+goes black and a ring of light surrounds it. Light then reaches the film only
+obliquely through the diffuser, so what the lens sees is what scatters it:
+dust, hairs and scratches glowing on black.
+
 Keys: Space capture · arrows move (Shift ×5) · Ctrl+arrows resize ·
 +/- intensity · G guides · M marks · H help · Esc close.
 """
@@ -20,6 +25,9 @@ from belka.light.geometry import Adapter, LightSettings
 EDGE = 10  # px grabbed by the mouse around the rectangle's edges
 HUD_COLOR = QColor(80, 80, 80)
 MARK_COLOR = QColor(55, 55, 55)
+PATTERNS = ("normal", "darkfield")
+DARKFIELD_RING_MM = 15.0  # wide enough to light a 35 mm strip's diffuser from all sides
+DARKFIELD_MARGIN_MM = 2.0  # dark gap: no light may pass straight through the film's edge
 
 
 def screen_key(screen: QScreen) -> str:
@@ -58,6 +66,9 @@ class LightPanel(QWidget):
         self._drag: tuple[str, QPointF, QRectF] | None = None
         self._buttons: dict[str, QRectF] = {}
         self._flat_armed = False
+        self._pattern = "normal"
+        self._ring_mm = DARKFIELD_RING_MM
+        self._margin_mm = DARKFIELD_MARGIN_MM
 
     # ------------------------------------------------------------ public API
     def show_on(self, screen: QScreen | None) -> None:
@@ -112,6 +123,20 @@ class LightPanel(QWidget):
     def capturing(self) -> bool:
         return self._capturing
 
+    def set_pattern(self, pattern: str, ring_mm: float = DARKFIELD_RING_MM,
+                    margin_mm: float = DARKFIELD_MARGIN_MM) -> None:
+        """"normal" lights the film area; "darkfield" darkens it and lights a ring
+        ``ring_mm`` wide around it, ``margin_mm`` away from its edge."""
+        if pattern not in PATTERNS:
+            raise ValueError(f"unknown light pattern: {pattern}")
+        self._pattern = pattern
+        self._ring_mm, self._margin_mm = ring_mm, margin_mm
+        self.update()
+
+    @property
+    def pattern(self) -> str:
+        return self._pattern
+
     def set_status(self, text: str) -> None:
         self._status = text
         self.update()
@@ -153,6 +178,22 @@ class LightPanel(QWidget):
         rect.moveCenter(full.center())
         return rect
 
+    def darkfield_rects(self) -> tuple[QRectF, QRectF]:
+        """(dark film area, outer edge of the ring) in widget pixels.
+
+        When the light fills the whole window (windowed panel, free format)
+        there is no room around it, so the ring takes the window's border.
+        """
+        full = QRectF(self.rect())
+        ppm = self.ppm()
+        inset = (self._ring_mm + self._margin_mm) * ppm
+        film = self.light_rect()
+        if film.contains(full):
+            shrunk = full.adjusted(inset, inset, -inset, -inset)
+            if shrunk.isValid():
+                film = shrunk
+        return film, film.adjusted(-inset, -inset, inset, inset).intersected(full)
+
     def _store_rect(self, rect: QRectF) -> None:
         ppm = self.ppm()
         self.settings.rect_mm = (
@@ -166,14 +207,21 @@ class LightPanel(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
         light = self.light_rect()
-        painter.fillRect(light, self._color)
+        lit = light
+        if self._pattern == "darkfield":
+            film, lit = self.darkfield_rects()
+            gap = self._margin_mm * self.ppm()
+            painter.fillRect(lit, self._color)
+            painter.fillRect(film.adjusted(-gap, -gap, gap, gap), Qt.GlobalColor.black)
+        else:
+            painter.fillRect(light, self._color)
         self._buttons = {}  # refilled only when the HUD is actually drawn
         if not self._capturing:
             self._paint_guides(painter, light)
             if self._ruler:
                 self._paint_ruler(painter)
             if self.settings.hud:
-                self._paint_hud(painter, light)
+                self._paint_hud(painter, light, lit)
         painter.end()
 
     def _paint_guides(self, painter: QPainter, light: QRectF) -> None:
@@ -246,9 +294,10 @@ class LightPanel(QWidget):
         y = r.top() + margin if side == "top" else r.bottom() - height - margin
         return QPointF(x, y)
 
-    def _paint_hud(self, painter: QPainter, light: QRectF) -> None:
+    def _paint_hud(self, painter: QPainter, light: QRectF, lit: QRectF) -> None:
+        """``lit`` is what the HUD must stay clear of: the light, or the dark-field ring."""
         self._buttons = {}
-        if QRectF(self.rect()) == light:
+        if lit.contains(QRectF(self.rect())):
             return
         painter.setFont(QFont(painter.font().family(), 10))
         metrics = painter.fontMetrics()
@@ -265,7 +314,7 @@ class LightPanel(QWidget):
         for with_thumb, with_buttons in layouts:
             height = text_h + (bh + 14 if with_buttons else 0) + (thumb.height() + 12 if with_thumb else 0)
             width = max(text_w, 2 * bw + 10 if with_buttons else 0, 220 if with_thumb else 0)
-            origin = self._hud_place(light, width, height)
+            origin = self._hud_place(lit, width, height)
             if origin is not None:
                 break
         else:
