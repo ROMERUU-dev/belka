@@ -126,6 +126,8 @@ class PowerSwitch(QAbstractButton):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         track = QRectF(2.5, 4.5, 17, 8)
         on = self.isChecked()
+        if not self.isEnabled():
+            p.setOpacity(0.4)
         p.setPen(QPen(QColor("#8c8c8c" if on else "#575757"), 1.0))
         p.setBrush(QColor("#6e6e6e" if on else "#202020"))
         p.drawRoundedRect(track, 4, 4)
@@ -235,9 +237,23 @@ class Section(QWidget):
         self.body = QWidget()
         self.body.setObjectName("sectionBody")
         self.body.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.content = QVBoxLayout(self.body)
-        self.content.setContentsMargins(12, 4, 12, 10)
+        body = QVBoxLayout(self.body)
+        body.setContentsMargins(12, 4, 12, 10)
+        body.setSpacing(2)
+        # Why the controls are greyed out (set_unavailable), above them and never greyed itself.
+        self.notice = QLabel()
+        self.notice.setObjectName("warning")
+        self.notice.setWordWrap(True)
+        self.notice.hide()
+        # The controls sit in their own widget, so greying them all out leaves
+        # the enabled state each one has for its own reasons untouched.
+        self.controls = QWidget()
+        self.content = QVBoxLayout(self.controls)
+        self.content.setContentsMargins(0, 0, 0, 0)
         self.content.setSpacing(2)
+        body.addWidget(self.notice)
+        body.addWidget(self.controls)
+        self._active = True
         outer.addWidget(self.header)
         outer.addWidget(self.body)
         # A double-click arrives after the click that already folded the panel;
@@ -276,8 +292,26 @@ class Section(QWidget):
         """Show the switch state without emitting ``toggled`` (loading a frame)."""
         if self.header.switch is not None:
             self.header.switch.setChecked(on)
+        self._active = on
+        self._style_title()
+
+    def is_available(self) -> bool:
+        return self.controls.isEnabled()
+
+    def set_unavailable(self, reason: str) -> None:
+        """Grey out the controls and the switch, saying ``reason`` above them;
+        "" makes the panel usable again. The values themselves are kept."""
+        self.notice.setText(reason)
+        self.notice.setVisible(bool(reason))
+        self.controls.setEnabled(not reason)
+        if self.header.switch is not None:
+            self.header.switch.setEnabled(not reason)
+        self._style_title()
+
+    def _style_title(self) -> None:
+        bright = self._active and self.is_available()
         self.header.title.setStyleSheet(
-            f"color: {TEXT_BRIGHT if on else TEXT_DIM}; font-size: 13px; background: transparent;")
+            f"color: {TEXT_BRIGHT if bright else TEXT_DIM}; font-size: 13px; background: transparent;")
 
     def _on_click(self) -> None:
         self._before_click = self.is_expanded()

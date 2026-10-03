@@ -95,7 +95,15 @@ STRINGS: dict[str, str] = {
     # Develop panel
     "Película": "Film",
     "Impresión (curva de papel)": "Print (paper curve)",
-    "Plana lineal (para editar)": "Flat linear (for editing)",
+    "Lineal plana (para otro programa)": "Flat linear (for another program)",
+    "Impresión: el positivo terminado, con todos los ajustes de Belka.\nLineal plana: solo la luz de la escena (TIFF lineal), sin curva de papel ni ajustes de tono o color, para revelarla en otro programa.":
+        "Print: the finished positive, with all of Belka's adjustments.\nFlat linear: only the scene's light (linear TIFF), with no paper curve and no tone or colour adjustments, for developing in another program.",
+    "Salida lineal plana: aquí solo cuentan el balance de blancos, la exposición, los blancos y los negros.":
+        "Flat linear output: only white balance, exposure, whites and blacks apply here.",
+    "Usar impresión": "Use Print",
+    "Volver a la salida de impresión, donde se aplican todos los ajustes": "Back to the print output, where every adjustment applies",
+    "No se aplica con la salida lineal plana (Perfil de película › Salida).": "Not applied with the flat linear output (Film Profile › Output).",
+    "no se aplica a la salida plana": "not applied to the flat output",
     "Salida": "Output",
     "Base de la película (máscara)": "Film base (mask)",
     "Automática": "Automatic",

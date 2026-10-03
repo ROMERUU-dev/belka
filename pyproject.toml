@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "belka"
-version = "0.3.0"
+version = "0.3.1"
 description = "Digitalización de negativos con cámara y la pantalla como fuente de luz"
 readme = "README.md"
 license = "MIT"

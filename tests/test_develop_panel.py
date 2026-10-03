@@ -390,7 +390,7 @@ def test_picking_from_a_list_leaves_the_keys_with_the_photo(desk):
     assert combo.view().isVisible()
     QTest.keyClick(combo.view(), Qt.Key.Key_Down)
     QTest.keyClick(combo.view(), Qt.Key.Key_Return)
-    assert panel.settings.output == "flat" and panel.commits == ["Salida: Plana lineal (para editar)"]
+    assert panel.settings.output == "flat" and panel.commits == ["Salida: Lineal plana (para otro programa)"]
     assert desk.photo.hasFocus()
     # The offscreen platform leaves its hidden list window active; a window manager would not.
     desk.activateWindow()
@@ -852,6 +852,44 @@ def test_profile_output_and_crop_controls(panel, library):
     assert not panel.auto_crop.isChecked()
     panel.auto_crop.click()
     assert panel.settings.auto_crop and panel.settings.crop is None
+
+
+def test_flat_output_greys_out_what_it_does_not_apply(panel, library):
+    """The flat output skips the print's tone and colour work: those controls go grey and say why."""
+    from belka.ui.develop_panel import FLAT_IGNORED_FIELDS, FLAT_IGNORED_SECTIONS
+
+    assert panel.flat_note.isHidden()
+    panel.output_combo.activated.emit(panel.output_combo.findData("flat"))
+    assert panel.settings.output == "flat"
+    assert not panel.flat_note.isHidden()
+    for field in FLAT_IGNORED_FIELDS:
+        assert not panel.rows[field].isEnabled(), field
+    for field in ("exposure", "white", "black", "temperature", "tint", "auto_balance", "lens_distortion"):
+        assert panel.rows[field].isEnabled(), field
+    for key in FLAT_IGNORED_SECTIONS:
+        section = panel.sections.section(key)
+        assert not section.is_available() and not section.notice.isHidden(), key
+        assert not section.header.switch.isEnabled()
+    for key in ("film", "basic", "lens", "transform"):
+        assert panel.sections.section(key).is_available(), key
+    # "Usar impresión" puts everything back, as one history step.
+    panel.flat_print.click()
+    assert panel.settings.output == "print"
+    assert panel.output_combo.currentData() == "print"
+    assert panel.commits[-1] == "Salida: Impresión (curva de papel)"
+    assert panel.flat_note.isHidden()
+    assert all(panel.rows[f].isEnabled() for f in FLAT_IGNORED_FIELDS)
+    assert all(panel.sections.section(k).is_available() for k in FLAT_IGNORED_SECTIONS)
+    # Loading a flat frame greys out too; a black-and-white film keeps its colour rows grey either way.
+    panel.load(DevelopSettings(output="flat", profile_id="ilford-hp5-plus"), lock_base=False)
+    assert not panel.rows["contrast"].isEnabled() and not panel.rows["saturation"].isEnabled()
+    panel.load(DevelopSettings(output="print", profile_id="ilford-hp5-plus"), lock_base=False)
+    assert panel.rows["contrast"].isEnabled() and not panel.rows["saturation"].isEnabled()
+    assert not panel.sections.section("hsl").body.isEnabled()
+    panel.load(DevelopSettings(output="flat"), lock_base=False)
+    panel.profile_combo.activated.emit(panel.profile_combo.findData("ilford-hp5-plus"))
+    panel.profile_combo.activated.emit(panel.profile_combo.findData("kodak-portra-400"))
+    assert not panel.rows["saturation"].isEnabled()  # still flat
 
 
 def test_separation_follows_the_profile_or_its_slider(panel):

@@ -322,3 +322,25 @@ def test_a_frame_whose_file_vanished_reports_once(window, tmp_path, library):
         _pump(0.5)
     dialogs = [e for e in errors if isinstance(e, tuple)]  # QMessageBox.warning, not the raw signal
     assert len(dialogs) == 1 and "No se encuentra el archivo" in str(dialogs[0])
+
+
+def test_flat_output_auto_tone_and_histogram_leave_out_what_it_ignores(window):
+    """On the flat output Auto sets only exposure, whites and blacks, and the
+    histogram's Sombras / Altas luces zones are inert."""
+    win, errors, _truth = window
+    win.develop_panel.apply_external(contrast=1.3, highlights=0.5, shadows=-0.5)
+    win.develop_panel.output_combo.activated.emit(win.develop_panel.output_combo.findData("flat"))
+    _wait_render(win)
+    assert {"highlights", "shadows"} <= win.histogram._inert and "exposure" not in win.histogram._inert
+    win.auto_tone()
+    hist = win.history.get(win.frame.id)
+    end = time.monotonic() + 60
+    while hist.entries()[-1].label != "Tono automático" and time.monotonic() < end:
+        _pump(0.02)
+    assert hist.entries()[-1].label == "Tono automático"
+    s = win._current_settings()
+    assert (s.contrast, s.highlights, s.shadows) == (1.3, 0.5, -0.5)
+    win.develop_panel.flat_print.click()
+    _wait_render(win)
+    assert win._current_settings().output == "print" and not win.histogram._inert
+    assert not errors

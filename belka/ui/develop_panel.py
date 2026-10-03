@@ -77,7 +77,11 @@ HUE = Mapping.identity(0, 360)
 
 # Básico's tone group: its "Auto" button and the sliders with an automatic value (Shift+double-click).
 TONE_FIELDS = ("exposure", "contrast", "highlights", "shadows", "white", "black")
-# The Transformar sliders; resetting them also forgets the Upright mode and guides that set them.
+# The flat output is the scene's linear light, for another program: no paper
+# curve and none of the tone and colour work done on the print. These
+# Básico sliders and these whole panels do nothing there, so they go grey.
+FLAT_IGNORED_FIELDS = ("contrast", "highlights", "shadows", "texture", "clarity", "vibrance", "saturation")
+FLAT_IGNORED_SECTIONS = ("curve", "hsl", "grading", "detail", "effects")# The Transformar sliders; resetting them also forgets the Upright mode and guides that set them.
 TRANSFORM_FIELDS = ("angle", "persp_vertical", "persp_horizontal", "persp_rotate", "persp_aspect", "persp_scale",
                     "persp_x", "persp_y", "upright_mode", "upright_guides")
 
@@ -297,7 +301,11 @@ class DevelopPanel(QScrollArea):
         sec.add(self.profile_notes)
         self.output_combo = QComboBox()
         self.output_combo.addItem(_("Impresión (curva de papel)"), "print")
-        self.output_combo.addItem(_("Plana lineal (para editar)"), "flat")
+        self.output_combo.addItem(_("Lineal plana (para otro programa)"), "flat")
+        self.output_combo.setToolTip(_(
+            "Impresión: el positivo terminado, con todos los ajustes de Belka.\n"
+            "Lineal plana: solo la luz de la escena (TIFF lineal), sin curva de papel ni ajustes de tono o "
+            "color, para revelarla en otro programa."))
         sec.add(self._form_row(_("Salida"), self.output_combo))
         self.auto_crop = CheckBox(_("Encuadre automático del fotograma"))
         self.auto_crop.setToolTip(_("Recorta solo la imagen, sin perforaciones, bordes ni luz alrededor."))
@@ -367,6 +375,25 @@ class DevelopPanel(QScrollArea):
         return row
 
     def _build_basic(self, sec: Section) -> None:
+        self.flat_note = QWidget()
+        row = QHBoxLayout(self.flat_note)
+        row.setContentsMargins(0, 4, 0, 2)
+        row.setSpacing(6)
+        note = QLabel(_("Salida lineal plana: aquí solo cuentan el balance de blancos, la exposición, los blancos "
+                        "y los negros."))
+        note.setObjectName("warning")
+        note.setWordWrap(True)
+        self.flat_print = QToolButton()
+        self.flat_print.setObjectName("textButton")
+        self.flat_print.setText(_("Usar impresión"))
+        self.flat_print.setToolTip(_("Volver a la salida de impresión, donde se aplican todos los ajustes"))
+        self.flat_print.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.addWidget(note, 1)
+        row.addWidget(self.flat_print, 0, Qt.AlignmentFlag.AlignTop)
+        self.flat_note.hide()
+        sec.add(self.flat_note)
+        self.flat_print.clicked.connect(lambda: self._set_output("print"))
+
         wb = self._heading(sec, _("Balance de blancos"), ("temperature", "tint", "neutral"))
         self.neutral_state = QLabel()
         self.neutral_state.setObjectName("note")
@@ -730,7 +757,7 @@ class DevelopPanel(QScrollArea):
         """Show ``self._settings`` everywhere. Setters here never emit signals."""
         s = self._settings
         self._select_profile(s.profile_id)
-        self.output_combo.setCurrentIndex(max(0, self.output_combo.findData(s.output)))
+        self._refresh_output()
         self.auto_crop.setChecked(s.crop is None and s.auto_crop)
         self.base_auto.setEnabled(not self.base_lock.isChecked())
         for key, (field, index) in self._bindings.items():
@@ -753,6 +780,23 @@ class DevelopPanel(QScrollArea):
         self.neutral_clear.setVisible(any(s.neutral))
         self._refresh_profile_info()
         self._refresh_base()
+
+    def _refresh_output(self) -> None:
+        """The flat output leaves out the print's tone and colour work: grey out what does nothing there."""
+        flat = self._settings.output == "flat"
+        self.output_combo.setCurrentIndex(max(0, self.output_combo.findData(self._settings.output)))
+        self.flat_note.setVisible(flat)
+        self._refresh_flat_rows()
+        reason = _("No se aplica con la salida lineal plana (Perfil de película › Salida).") if flat else ""
+        for key in FLAT_IGNORED_SECTIONS:
+            self.sections.section(key).set_unavailable(reason)
+
+    def _refresh_flat_rows(self) -> None:
+        # Vibrance and saturation are also grey for a black-and-white film.
+        flat = self._settings.output == "flat"
+        color = not self.current_profile().is_bw
+        for field in FLAT_IGNORED_FIELDS:
+            self.rows[field].setEnabled(not flat and (color or field not in ("vibrance", "saturation")))
 
     def _sync_upright(self) -> None:
         """Light the button of ``upright_mode``; none while no Upright is applied ("")."""
@@ -785,11 +829,11 @@ class DevelopPanel(QScrollArea):
             text += "\n" + profile.notes
         self.profile_notes.setText(text)
         color = not profile.is_bw
-        for widget in (self.rows["temperature"], self.rows["tint"], self.rows["vibrance"], self.rows["saturation"],
-                       self.neutral_pick, self.neutral_clear, self.neutral_state, self.separation_profile,
-                       self.sections.section("hsl").body):
+        for widget in (self.rows["temperature"], self.rows["tint"], self.neutral_pick, self.neutral_clear,
+                       self.neutral_state, self.separation_profile, self.sections.section("hsl").body):
             widget.setEnabled(color)
         self.separation.setEnabled(color and not self.separation_profile.isChecked())
+        self._refresh_flat_rows()
 
     def _refresh_parametric(self) -> None:
         s = self._settings
@@ -814,6 +858,8 @@ class DevelopPanel(QScrollArea):
     def _change(self, label: str | None, **changes) -> None:
         """Apply a change made in the panel; ``label`` closes a history step."""
         self._settings = self._settings.copy(**changes)
+        if "output" in changes:
+            self._refresh_output()
         if "base" in changes:
             self._refresh_base()
         if "neutral" in changes:
@@ -899,9 +945,12 @@ class DevelopPanel(QScrollArea):
         self._change(_("Película: {name}").format(name=film_name(profile)))
 
     def _on_output(self, index: int) -> None:
-        output = self.output_combo.itemData(index)
+        self._set_output(self.output_combo.itemData(index))
+
+    def _set_output(self, output: str) -> None:
         if output != self._settings.output:
-            self._change(_("Salida: {name}").format(name=self.output_combo.itemText(index)), output=output)
+            name = self.output_combo.itemText(self.output_combo.findData(output))
+            self._change(_("Salida: {name}").format(name=name), output=output)
 
     def _on_auto_crop(self, on: bool) -> None:
         # Turning it on replaces a manual crop; turning it off shows everything.

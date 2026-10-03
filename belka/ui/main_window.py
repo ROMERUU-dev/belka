@@ -60,7 +60,7 @@ from belka.settings import Settings
 from belka.system import IdleInhibitor, night_light_enabled, night_light_paused, pause_night_light, resume_night_light
 from belka.ui.capture_flow import CaptureFlow
 from belka.ui.capture_panel import CapturePanel
-from belka.ui.develop_panel import DevelopPanel
+from belka.ui.develop_panel import FLAT_IGNORED_FIELDS, TONE_FIELDS, DevelopPanel
 from belka.ui.dialogs import ExportDialog, ExportRunner, HelpDialog, NewRollDialog, SaveProfileDialog, default_root
 from belka.ui.filmstrip import Filmstrip
 from belka.ui.histogram import InteractiveHistogram, zone_label
@@ -1145,7 +1145,7 @@ class MainWindow(QMainWindow):
         if result.histogram is not None and result.job.view == "positive":
             self.histogram.set_histogram(result.histogram)
             self.develop_panel.set_histogram(result.histogram)
-        self.histogram.set_values({k: float(getattr(result.job.settings, k)) for k in HIST_RANGES})
+        self._show_tone_values(result.job.settings)
         self.histogram.set_info(exif_summary(result.meta.get("exif") or {}))
         if self.view.tool == "crop" and result.job.ignore_crop:
             # Constrain to the picture, as Lightroom's crop tool does: after
@@ -1236,7 +1236,7 @@ class MainWindow(QMainWindow):
 
     def _on_settings(self, settings: pl.DevelopSettings) -> None:
         self._save_timer.start()
-        self.histogram.set_values({k: float(getattr(settings, k)) for k in HIST_RANGES})
+        self._show_tone_values(settings)
         self.request_render()
         if self._compare != "off":
             self._request_before()
@@ -1709,6 +1709,11 @@ class MainWindow(QMainWindow):
         if self.session is None or self.frame is None:
             return
         settings = self._current_settings()
+        if settings.output == "flat":
+            # Contrast, highlights and shadows do nothing on the flat output.
+            fields = tuple(f for f in (fields or TONE_FIELDS) if f not in FLAT_IGNORED_FIELDS)
+            if not fields:
+                return
         self.develop.request(DevelopJob(
             kind="auto_tone", session=self.session, frame=self.frame, settings=settings,
             profile=self.library.get(settings.profile_id), fields=fields,
@@ -1926,6 +1931,11 @@ class MainWindow(QMainWindow):
             self.commit_history(label)
 
     # ---------------------------------------------------------------- histogram, compare, clipping
+    def _show_tone_values(self, settings: pl.DevelopSettings) -> None:
+        self.histogram.set_values({k: float(getattr(settings, k)) for k in HIST_RANGES})
+        # The flat output has no Sombras or Altas luces: their zones would drag nothing.
+        self.histogram.set_inert_zones(FLAT_IGNORED_FIELDS if settings.output == "flat" else ())
+
     def _on_histogram_drag(self, field: str, delta: float) -> None:
         if self.frame is None or field not in HIST_RANGES:
             return

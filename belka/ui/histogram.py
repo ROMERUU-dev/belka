@@ -166,6 +166,7 @@ class InteractiveHistogram(QWidget):
         self._clipped: tuple[tuple[bool, ...], tuple[bool, ...]] = ((False,) * 3, (False,) * 3)
         self._show_clipping = {"shadows": False, "highlights": False}
         self._values = {name: 0.0 for name in FIELDS}
+        self._inert: frozenset[str] = frozenset()
         self._readout = ""
         self._info = ""
         self._hover_zone: str | None = None
@@ -204,6 +205,17 @@ class InteractiveHistogram(QWidget):
             if name in values and name != dragged:
                 self._values[name] = float(values[name])
         self.update()
+
+    def set_inert_zones(self, zones) -> None:
+        """Zones whose slider does nothing for this photo (the flat output has no
+        Sombras or Altas luces): hovering says so, and they do not drag."""
+        zones = frozenset(zones)
+        if zones != self._inert:
+            self._inert = zones
+            if self._drag is not None and self._drag.field in zones:
+                self._end_drag()
+            self._hover_zone = self._hover_clip = None
+            self.update()
 
     def set_readout(self, text: str) -> None:
         self._readout = text
@@ -260,6 +272,8 @@ class InteractiveHistogram(QWidget):
         if self._curves is None:
             return
         field = self.zone_at(pos.x())
+        if field in self._inert:
+            return
         value = self._values[field]
         self._drag = _Drag(field, pos.x(), value, value)
         self._hover_zone = field
@@ -289,6 +303,8 @@ class InteractiveHistogram(QWidget):
             super().mouseDoubleClickEvent(event)
             return
         field = self.zone_at(pos.x())
+        if field in self._inert:
+            return
         value = self._values[field]
         if value != 0.0:
             self._values[field] = 0.0
@@ -361,7 +377,7 @@ class InteractiveHistogram(QWidget):
         self._hover_clip, self._hover_zone = clip, zone
         if clip:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
-        elif zone:
+        elif zone and zone not in self._inert:
             self.setCursor(Qt.CursorShape.SizeHorCursor)
         else:
             self.unsetCursor()
@@ -456,11 +472,12 @@ class InteractiveHistogram(QWidget):
         base = footer.center().y() + (metrics.ascent() - metrics.descent()) / 2
         if zone and self.isEnabled():
             name = field_label(zone) + "  "
-            value = format_value(zone, self._values[zone])
+            inert = zone in self._inert
+            value = _("no se aplica a la salida plana") if inert else format_value(zone, self._values[zone])
             x = footer.center().x() - (metrics.horizontalAdvance(name) + metrics.horizontalAdvance(value)) / 2
             painter.setPen(_TEXT)
             painter.drawText(QPointF(x, base), name)
-            painter.setPen(_TEXT_BRIGHT)
+            painter.setPen(_TEXT_DIM if inert else _TEXT_BRIGHT)
             painter.drawText(QPointF(x + metrics.horizontalAdvance(name), base), value)
         elif self._readout:
             text = metrics.elidedText(self._readout, Qt.TextElideMode.ElideRight, footer.width())

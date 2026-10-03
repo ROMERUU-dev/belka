@@ -440,7 +440,7 @@ def auto_tone(geo: np.ndarray, analysis: pl.Analysis, settings: pl.DevelopSettin
     not requested keep theirs. Measured on tone alone: the Saturation
     slider (whose stronger colours can push one channel past white without
     any tone being blown), effects and detail (vignette, grain, sharpening,
-    noise reduction) are left out, and a flat (for editing) output is
+    noise reduction) are left out, and a flat output (for another program) is
     measured as the print it would make.
     """
     fields = TONE_FIELDS if fields is None else tuple(dict.fromkeys(fields))

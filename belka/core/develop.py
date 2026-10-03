@@ -141,7 +141,7 @@ def invert(geo: np.ndarray, analysis: pl.Analysis, settings: pl.DevelopSettings,
 
 
 def finish(display: np.ndarray, settings: pl.DevelopSettings, scale: float, seed: int = 0) -> np.ndarray:
-    """Lightroom-style adjustments; skipped for the flat (for-editing) output."""
+    """Lightroom-style adjustments; skipped for the flat output (meant for another program)."""
     if settings.output == "flat":
         return display
     adjust = _adjust()

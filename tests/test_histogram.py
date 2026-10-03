@@ -276,6 +276,24 @@ def test_without_a_photo_the_zones_are_inert(hist):
     assert hist.toggles == [("shadows", True)]
 
 
+def test_inert_zones_neither_drag_nor_reset(hist):
+    """The flat output has no Sombras or Altas luces: their zones say so and do nothing."""
+    hist.set_values({"shadows": 0.4})
+    hist.set_inert_zones(("shadows", "highlights"))
+    move(hist, x_at(0.2), held=False)
+    assert hist.cursor().shape() == Qt.CursorShape.ArrowCursor
+    hist.grab()  # paints the "not applied" footer
+    drag(hist, 0.2, 0.25)
+    drag(hist, 0.8, 0.85)
+    send(hist, QEvent.Type.MouseButtonDblClick, x_at(0.2), 60.0, Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton)
+    assert hist.adjusts == [] and hist.finished == []
+    drag(hist, 0.5, 0.6)
+    assert total(hist, "exposure") > 0
+    hist.set_inert_zones(())
+    move(hist, x_at(0.21), held=False)
+    assert hist.cursor().shape() == Qt.CursorShape.SizeHorCursor
+
+
 def test_losing_the_photo_mid_drag_closes_the_drag(hist):
     press(hist, x_at(0.5))
     move(hist, x_at(0.6))
