@@ -1,0 +1,16 @@
+{
+  "_comment": "Tamanos en mm. light_mm = zona iluminada (pelicula + margen para medir la base en el borde); frame_mm = guia del fotograma. null = toda la pantalla.",
+  "adapters": [
+    {"id": "35mm", "name": "35 mm (24×36)", "frame_mm": [36, 24], "light_mm": [56, 40]},
+    {"id": "35mm-half", "name": "35 mm medio cuadro (18×24)", "frame_mm": [18, 24], "light_mm": [40, 40]},
+    {"id": "35mm-pano", "name": "35 mm panorámico (24×65)", "frame_mm": [65, 24], "light_mm": [80, 40]},
+    {"id": "120-645", "name": "120 6×4.5", "frame_mm": [56, 41.5], "light_mm": [76, 66]},
+    {"id": "120-66", "name": "120 6×6", "frame_mm": [56, 56], "light_mm": [76, 66]},
+    {"id": "120-67", "name": "120 6×7", "frame_mm": [70, 56], "light_mm": [90, 66]},
+    {"id": "120-69", "name": "120 6×9", "frame_mm": [84, 56], "light_mm": [104, 66]},
+    {"id": "4x5", "name": "Placa 4×5 in", "frame_mm": [120, 95], "light_mm": [130, 105]},
+    {"id": "belka-35-v0", "name": "Adaptador Belka 35 (prototipo)", "frame_mm": [36, 24], "light_mm": [50, 38],
+     "marks": true, "notes": "Reservado para el adaptador impreso en 3D: ventana de luz y marcas de registro."},
+    {"id": "free", "name": "Pantalla completa", "frame_mm": null, "light_mm": null}
+  ]
+}

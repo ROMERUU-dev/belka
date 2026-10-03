@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Belka
+GenericName=Digitalizador de negativos
+GenericName[en]=Film negative digitiser
+Comment=Digitaliza negativos con tu cámara y la pantalla como fuente de luz
+Comment[en]=Digitise film negatives with your camera and the screen as the light source
+Exec=@EXEC@
+Icon=io.github.romeruu_dev.Belka
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=film;negative;scan;camera;tether;gphoto2;negativo;película;escáner;rollo;
+StartupNotify=true

@@ -1,0 +1,341 @@
+{
+  "_comment": [
+    "Lo que Belka sabe de cada marca para controlarla con libgphoto2 (belka/camera/models.py).",
+    "widgets: nombres de los controles de libgphoto2 que se prueban, en orden, para cada ajuste del panel;",
+    "  los de la marca van antes que los genéricos. focus: control de enfoque manual; type 'range' (numérico)",
+    "  o 'choice' (pasos 'Near 1..3' / 'None' / 'Far 1..3' de Canon); units 'steps' = pasos del motor,",
+    "  'size' = tamaño de paso 1-3, vacío = se deduce del rango. autofocus.release_after: segundos hasta",
+    "  soltar el botón (Sony lo deja pulsado a medias). liveview: control que apaga la vista en vivo.",
+    "series y models refinan la marca por expresión regular o nombre exacto (como lo da libgphoto2)."
+  ],
+  "generic": {
+    "name": {"es": "Otra cámara PTP", "en": "Other PTP camera"},
+    "widgets": {
+      "iso": ["iso", "isospeed"],
+      "iso_auto": ["autoiso", "isoauto"],
+      "shutter": ["shutterspeed2", "shutterspeed"],
+      "aperture": ["f-number", "aperture"],
+      "exposure_comp": ["exposurecompensation"],
+      "quality": ["imagequality", "imageformat"],
+      "target": ["capturetarget"],
+      "whitebalance": ["whitebalance"],
+      "liveview_size": ["liveviewsize"],
+      "focusmode": ["focusmode"],
+      "program": ["expprogram", "autoexposuremode", "exposuremode"],
+      "battery": ["batterylevel"]
+    },
+    "focus": {"widgets": ["manualfocusdrive", "manualfocus"], "type": "range"},
+    "autofocus": {"widgets": ["autofocusdrive", "autofocus"]},
+    "liveview": ["viewfinder"],
+    "usb_mode": {
+      "es": "Pon la conexión USB de la cámara en PTP o «control remoto / PC», no en «almacenamiento masivo».",
+      "en": "Set the camera's USB connection to PTP or “remote control / PC”, not “mass storage”."
+    },
+    "notes": []
+  },
+  "brands": [
+    {
+      "id": "nikon",
+      "name": "Nikon",
+      "match": "^Nikon ",
+      "_comment": "D780 (probada): 'autoiso' (0xd054) es el ISO automático real; 'isoauto' dice On aunque el ISO quede fijo. 'shutterspeed' da segundos decimales ('0.0333s'); 'shutterspeed2' fracciones ('1/30').",
+      "widgets": {
+        "iso": ["iso"],
+        "iso_auto": ["autoiso", "isoauto"],
+        "shutter": ["shutterspeed2", "shutterspeed"],
+        "aperture": ["f-number"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imagequality"],
+        "target": ["capturetarget"],
+        "liveview_size": ["liveviewsize"],
+        "focusmode": ["focusmode"],
+        "program": ["expprogram"]
+      },
+      "focus": {"widgets": ["manualfocusdrive"], "type": "range", "units": "steps"},
+      "autofocus": {"widgets": ["autofocusdrive"]},
+      "liveview": ["viewfinder"],
+      "usb_mode": {
+        "es": "No hace falta elegir modo USB. Apaga el Wi-Fi/Bluetooth de la cámara y alarga el apagado automático.",
+        "en": "No USB mode to choose. Turn the camera's Wi-Fi/Bluetooth off and lengthen the auto power-off delay."
+      },
+      "notes": [
+        {"es": "Dial en M para cambiar velocidad, diafragma e ISO desde aquí.",
+         "en": "Mode dial on M to change shutter, aperture and ISO from here."},
+        {"es": "El foco remoto necesita la vista en vivo activa y un objetivo AF en modo A o M/A.",
+         "en": "Remote focus needs live view on and an AF lens set to A or M/A."}
+      ],
+      "series": [
+        {
+          "id": "nikon-z",
+          "name": {"es": "Nikon Z (sin espejo)", "en": "Nikon Z (mirrorless)"},
+          "match": "^Nikon Z",
+          "usb_mode": {
+            "es": "Menú Configuración → «Conectar a PC» (o «Conexión inalámbrica») en Desactivado; en Z8/Z9, «Conexión USB» = MTP/PTP.",
+            "en": "Setup menu → “Connect to PC” (or “Wireless connection”) Off; on the Z8/Z9, “USB connection” = MTP/PTP."
+          },
+          "notes": [
+            {"es": "Con la vista en vivo remota, el visor y la pantalla de la cámara se apagan: es normal.",
+             "en": "During remote live view the camera's viewfinder and screen go dark: that is normal."}
+          ]
+        },
+        {
+          "id": "nikon-dslr",
+          "name": {"es": "Nikon réflex (D)", "en": "Nikon DSLR (D)"},
+          "match": "^Nikon DSC D",
+          "notes": [
+            {"es": "La vista en vivo sube el espejo; Belka lo baja al desactivarla.",
+             "en": "Live view raises the mirror; Belka lowers it when you turn live view off."}
+          ]
+        },
+        {
+          "id": "nikon-ptp",
+          "name": {"es": "Nikon (modo PTP)", "en": "Nikon (PTP mode)"},
+          "match": "\\(PTP mode\\)$",
+          "usb_mode": {
+            "es": "Menú Configuración → «USB» = PTP (no «Mass Storage»).",
+            "en": "Setup menu → “USB” = PTP (not “Mass Storage”)."
+          }
+        }
+      ],
+      "models": {
+        "Nikon DSC D780": {
+          "notes": [
+            {"es": "Probada con Belka: captura NEF, vista en vivo, foco y autoenfoque remotos.",
+             "en": "Tested with Belka: NEF capture, live view, remote focus and autofocus."}
+          ]
+        }
+      }
+    },
+    {
+      "id": "canon",
+      "name": "Canon EOS",
+      "match": "^Canon ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["aperture"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imageformat", "imageformatsd", "imageformatcf"],
+        "target": ["capturetarget"],
+        "focusmode": ["focusmode"],
+        "program": ["autoexposuremode"]
+      },
+      "focus": {"widgets": ["manualfocusdrive"], "type": "choice"},
+      "autofocus": {"widgets": ["autofocusdrive"]},
+      "liveview": ["viewfinder"],
+      "usb_mode": {
+        "es": "No hace falta modo USB, pero desactiva el Wi-Fi/Bluetooth («Config. inalámbrica → Desactivar»): con él activo el puerto USB no responde.",
+        "en": "No USB mode to choose, but turn Wi-Fi/Bluetooth off (“Wireless settings → Disable”): while it is on the USB port does not answer."
+      },
+      "notes": [
+        {"es": "«Guardar en» = «Memory card» para que el RAW quede también en la tarjeta; con «Internal RAM» la foto solo llega al ordenador.",
+         "en": "“Save to” = “Memory card” to keep the RAW on the card too; with “Internal RAM” the shot only reaches the computer."},
+        {"es": "Dial en M. El foco remoto necesita la vista en vivo y el objetivo en AF; avanza por pasos Near/Far 1–3.",
+         "en": "Mode dial on M. Remote focus needs live view and the lens on AF; it moves in Near/Far 1–3 steps."}
+      ],
+      "series": [
+        {
+          "id": "canon-r",
+          "name": {"es": "Canon EOS R (sin espejo)", "en": "Canon EOS R (mirrorless)"},
+          "match": "^Canon EOS R(?!ebel)",
+          "notes": [
+            {"es": "Elige «Primera cortina electrónica» en el menú de disparo: evita vibraciones en el reprostand.",
+             "en": "Choose “Electronic first curtain” in the shooting menu: it avoids vibration on the copy stand."}
+          ]
+        },
+        {
+          "id": "canon-dslr",
+          "name": {"es": "Canon EOS réflex", "en": "Canon EOS DSLR"},
+          "match": "^Canon EOS (?!R(?!ebel))",
+          "notes": [
+            {"es": "La vista en vivo sube el espejo; Belka lo baja al desactivarla.",
+             "en": "Live view raises the mirror; Belka lowers it when you turn live view off."}
+          ]
+        },
+        {
+          "id": "canon-ptp",
+          "name": {"es": "Canon (modo PTP)", "en": "Canon (PTP mode)"},
+          "match": "\\(PTP mode\\)$",
+          "usb_mode": {
+            "es": "Si la cámara tiene el menú «Comunicación», elige «Conexión PC» / PTP, no «Imprimir/PTP».",
+            "en": "If the camera has a “Communication” menu, choose “PC connection” / PTP, not “Print/PTP”."
+          }
+        }
+      ]
+    },
+    {
+      "id": "sony",
+      "name": "Sony Alpha",
+      "match": "^Sony ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["f-number"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imagequality"],
+        "target": ["capturetarget"],
+        "focusmode": ["focusmode"],
+        "program": ["expprogram"]
+      },
+      "focus": {"widgets": ["manualfocus"], "type": "range", "units": "size"},
+      "autofocus": {"widgets": ["autofocus"], "release_after": 1.0},
+      "liveview": [],
+      "usb_mode": {
+        "es": "Menú → Red / Configuración → «Conexión USB» = «PC Remote». En «Ajustes PC Remote», «Dest. guardado imág.» = «Solo PC» o «PC+Cámara».",
+        "en": "Menu → Network / Setup → “USB Connection” = “PC Remote”. In “PC Remote Settings”, “Still Img. Save Dest.” = “PC Only” or “PC+Camera”."
+      },
+      "notes": [
+        {"es": "Activa «Visualiz. en directo → Efecto de ajuste: Activado» para que la vista en vivo muestre la exposición real.",
+         "en": "Turn “Live View Display → Setting Effect ON” so live view shows the real exposure."},
+        {"es": "Si el modelo aparece como «(MTP)» la cámara está en modo almacenamiento: cambia la conexión USB a PC Remote.",
+         "en": "If the model shows up as “(MTP)” the camera is in storage mode: switch its USB connection to PC Remote."},
+        {"es": "Sony cambia velocidad e ISO paso a paso: un cambio grande tarda un par de segundos.",
+         "en": "Sony changes shutter speed and ISO one step at a time: a big change takes a couple of seconds."}
+      ]
+    },
+    {
+      "id": "fujifilm",
+      "name": "Fujifilm X / GFX",
+      "match": "^Fuji ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["f-number"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imageformat", "imagequality"],
+        "focusmode": ["focusmode"],
+        "program": ["expprogram"],
+        "liveview_size": ["liveviewsize"]
+      },
+      "focus": {"widgets": ["manualfocusdrive"], "type": "range"},
+      "autofocus": {"widgets": ["autofocusdrive"]},
+      "liveview": [],
+      "usb_mode": {
+        "es": "Menú Configuración → «Ajuste de conexión» → «Modo conexión PC» = «Disparo USB con cable auto» (USB TETHER SHOOTING AUTO; en modelos antiguos «PC SHOOT AUTO»).",
+        "en": "Setup menu → “Connection setting” → “PC connection mode” = “USB TETHER SHOOTING AUTO” (“PC SHOOT AUTO” on older models)."
+      },
+      "notes": [
+        {"es": "Diales de velocidad e ISO y anillo de diafragma en «A»: si no, la cámara ignora los cambios remotos.",
+         "en": "Shutter and ISO dials and the aperture ring on “A”: otherwise the camera ignores remote changes."},
+        {"es": "En AF-S no dispara si no encuentra foco: usa MF en el reprostand.",
+         "en": "In AF-S it will not fire without focus: use MF on the copy stand."}
+      ]
+    },
+    {
+      "id": "panasonic",
+      "name": "Panasonic Lumix",
+      "match": "^Panasonic ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["aperture", "f-number"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imageformat", "imagequality"],
+        "target": ["capturetarget"],
+        "liveview_size": ["liveviewsize"],
+        "focusmode": ["focusmode"],
+        "program": ["expprogram"]
+      },
+      "focus": {"widgets": ["manualfocusdrive"], "type": "range"},
+      "autofocus": {"widgets": ["autofocusdrive", "autofocus"]},
+      "liveview": ["viewfinder"],
+      "usb_mode": {
+        "es": "Menú Configuración → «USB» → «Modo USB» = «PC(Tether)». Sin esa opción, libgphoto2 solo puede descargar fotos.",
+        "en": "Setup menu → “USB” → “USB Mode” = “PC(Tether)”. Without that option libgphoto2 can only download pictures."
+      },
+      "notes": [
+        {"es": "Muchos Lumix recientes (S5, G9…) aparecen como «USB PTP Class Camera»: suelen funcionar, sin garantía.",
+         "en": "Many recent Lumix (S5, G9…) show up as “USB PTP Class Camera”: they usually work, without guarantee."}
+      ]
+    },
+    {
+      "id": "olympus",
+      "name": "OM System / Olympus",
+      "match": "^(Olympus|OM System|OMDS) ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["f-number", "aperture"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imageformat", "imagequality"],
+        "focusmode": ["focusmode"],
+        "program": ["expprogram"]
+      },
+      "focus": {"widgets": ["manualfocusdrive"], "type": "range"},
+      "autofocus": {"widgets": ["autofocusdrive"]},
+      "liveview": [],
+      "usb_mode": {
+        "es": "Al conectar el cable la cámara pregunta el modo USB: elige «RAW/Control» (o «Tether», según el modelo), no «Almacenamiento».",
+        "en": "When the cable goes in the camera asks for the USB mode: choose “RAW/Control” (or “Tether”, depending on the model), not “Storage”."
+      },
+      "notes": [
+        {"es": "Las Olympus C- y D- de la lista son compactas antiguas sin RAW: no sirven para digitalizar.",
+         "en": "The Olympus C- and D- models in the list are old compacts without RAW: not suitable for scanning."}
+      ]
+    },
+    {
+      "id": "pentax",
+      "name": "Pentax / Ricoh",
+      "match": "^(Pentax|Ricoh) ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["aperture"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imagequality", "imageformat"]
+      },
+      "focus": {"widgets": [], "type": "range"},
+      "autofocus": {"widgets": []},
+      "liveview": [],
+      "usb_mode": {
+        "es": "Conexión USB en «MSC» (almacenamiento masivo): el controlador de Pentax de libgphoto2 habla por SCSI, no por PTP.",
+        "en": "USB connection on “MSC” (mass storage): libgphoto2's Pentax driver talks SCSI, not PTP."
+      },
+      "notes": [
+        {"es": "Soporte en pruebas: sin vista en vivo ni foco remoto; velocidad y diafragma pueden verse solo como texto.",
+         "en": "Support in testing: no live view or remote focus; shutter and aperture may show as text only."}
+      ]
+    },
+    {
+      "id": "sigma",
+      "name": "Sigma",
+      "match": "^Sigma ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["aperture", "f-number"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imagequality", "imageformat"]
+      },
+      "focus": {"widgets": [], "type": "range"},
+      "autofocus": {"widgets": []},
+      "liveview": [],
+      "usb_mode": {
+        "es": "Menú → «Modo USB» = «Control de cámara» (Camera Control), no «Almacenamiento masivo» ni «UVC/UAC».",
+        "en": "Menu → “USB Mode” = “Camera Control”, not “Mass Storage” or “UVC/UAC”."
+      },
+      "notes": []
+    },
+    {
+      "id": "leica",
+      "name": "Leica",
+      "match": "^Leica ",
+      "widgets": {
+        "iso": ["iso"],
+        "shutter": ["shutterspeed"],
+        "aperture": ["f-number", "aperture"],
+        "exposure_comp": ["exposurecompensation"],
+        "quality": ["imagequality", "imageformat"]
+      },
+      "liveview": [],
+      "usb_mode": {
+        "es": "Menú → «Modo USB» = «PTP».",
+        "en": "Menu → “USB Mode” = “PTP”."
+      },
+      "notes": [
+        {"es": "La M9 y la M11 Monochrom disparan a distancia pero sin vista en vivo.",
+         "en": "The M9 and M11 Monochrom fire remotely but without live view."}
+      ]
+    }
+  ]
+}

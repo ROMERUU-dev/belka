@@ -1,0 +1,18 @@
+{
+  "_comment": "Diapositivas (positivo): no se invierten; gamma alta y base = pelicula clara.",
+  "profiles": [
+    {"id": "generic-slide", "name": "Genérico diapositiva E-6", "type": "slide", "process": "E-6",
+     "gamma": [1.70, 1.70, 1.70], "base_density": [0.12, 0.12, 0.14], "separation": 0.15,
+     "paper_contrast": 0.6, "notes": "Cualquier película reversible (positivo)."},
+    {"id": "kodak-ektachrome-e100", "name": "Ektachrome E100", "brand": "Kodak", "type": "slide", "process": "E-6", "iso": 100,
+     "gamma": [1.65, 1.65, 1.68], "base_density": [0.12, 0.12, 0.15], "separation": 0.15, "paper_contrast": 0.6},
+    {"id": "fujifilm-provia-100f", "name": "Provia 100F", "brand": "Fujifilm", "type": "slide", "process": "E-6", "iso": 100,
+     "gamma": [1.70, 1.70, 1.70], "base_density": [0.12, 0.12, 0.14], "separation": 0.15, "paper_contrast": 0.6},
+    {"id": "fujifilm-velvia-50", "name": "Velvia 50", "brand": "Fujifilm", "type": "slide", "process": "E-6", "iso": 50,
+     "gamma": [1.90, 1.90, 1.90], "base_density": [0.14, 0.14, 0.16], "separation": 0.20, "paper_contrast": 0.55,
+     "saturation": 1.08, "notes": "Muy saturada y contrastada."},
+    {"id": "fujifilm-velvia-100", "name": "Velvia 100", "brand": "Fujifilm", "type": "slide", "process": "E-6", "iso": 100,
+     "gamma": [1.85, 1.85, 1.85], "base_density": [0.13, 0.13, 0.15], "separation": 0.20, "paper_contrast": 0.55,
+     "saturation": 1.05}
+  ]
+}

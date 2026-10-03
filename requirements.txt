@@ -1,0 +1,10 @@
+# PySide6-Essentials instead of the full PySide6: Belka uses no WebEngine,
+# Quick3D or Designer, which make up most of the full wheel.
+PySide6-Essentials>=6.7
+numpy>=1.26
+# rawpy and gphoto2 ship wheels that bundle LibRaw and libgphoto2.
+rawpy>=0.21
+gphoto2>=2.5
+tifffile>=2024.1
+# Perspective, lens correction and the develop adjustments (no GUI parts needed).
+opencv-python-headless>=4.10

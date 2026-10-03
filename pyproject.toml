@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]  # PEP 639 license = "MIT"
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "belka"
+version = "0.3.0"
+description = "Digitalización de negativos con cámara y la pantalla como fuente de luz"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Juvenal Romero Pedraza (ROMERUU-dev)" }]
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6-Essentials>=6.7",
+    "numpy>=1.26",
+    "rawpy>=0.21",
+    "gphoto2>=2.5",
+    "tifffile>=2024.1",
+    "opencv-python-headless>=4.10",
+]
+
+[project.gui-scripts]
+belka = "belka.app:main"
+
+[tool.setuptools.packages.find]
+include = ["belka*"]
+
+[tool.setuptools.package-data]
+belka = ["data/*.json", "data/profiles/*.json", "data/icons/*.svg"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
