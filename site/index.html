@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="meta.title">Belka — Digitaliza negativos con tu cámara y tu pantalla</title>
+<meta name="description" data-i18n-attr="content:meta.desc" content="Belka es una app libre y gratuita para Linux que digitaliza negativos: tu pantalla es la fuente de luz, la cámara se controla por USB y el revelado es como en Lightroom Classic.">
+<meta name="author" content="Juvenal Romero Pedraza (ROMERUU-dev)">
+<meta name="theme-color" content="#070a0b">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://romeruu-dev.github.io/belka/">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Belka">
+<meta property="og:url" content="https://romeruu-dev.github.io/belka/">
+<meta property="og:title" content="Belka — Tu cámara escanea película. Tu pantalla es la luz.">
+<meta property="og:description" content="App libre para Linux que digitaliza negativos con tu cámara y tu pantalla como fuente de luz. · A free Linux app that scans film negatives with your camera, using your screen as the light.">
+<meta property="og:image" content="https://romeruu-dev.github.io/belka/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Belka: tu cámara escanea película, tu pantalla es la luz.">
+<meta property="og:locale" content="es_MX">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Belka — Your camera scans film. Your screen is the light.">
+<meta name="twitter:description" content="A free, open-source Linux app for digitising film negatives with your camera and your screen as the light source.">
+<meta name="twitter:image" content="https://romeruu-dev.github.io/belka/img/og.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Belka",
+  "softwareVersion": "0.3.0",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Linux",
+  "description": "Film negative digitisation with a camera and the computer screen as the light source.",
+  "url": "https://romeruu-dev.github.io/belka/",
+  "downloadUrl": "https://github.com/ROMERUU-dev/belka",
+  "license": "https://opensource.org/license/mit",
+  "isAccessibleForFree": true,
+  "inLanguage": ["es", "en"],
+  "author": { "@type": "Person", "name": "Juvenal Romero Pedraza", "url": "https://github.com/ROMERUU-dev" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<script>
+/* Pick the language before the first paint: saved choice, else the browser's. */
+(function () {
+  var d = document.documentElement, l = null;
+  var q = /[?&]lang=(es|en)\b/.exec(location.search);
+  if (q) l = q[1];
+  else try { l = localStorage.getItem("belka-lang"); } catch (e) {}
+  if (l !== "es" && l !== "en") l = /^es(-|$)/i.test(navigator.language || "") ? "es" : "en";
+  d.classList.add("js");
+  /* if main.js never runs, show everything rather than leave hidden content */
+  setTimeout(function () { if (!d.classList.contains("ready")) d.classList.remove("js", "i18n-pending"); }, 3000);
+  if (l === "en") {
+    d.lang = "en";
+    d.classList.add("i18n-pending");
+    setTimeout(function () { d.classList.remove("i18n-pending"); }, 1500);
+  }
+  /* start fetching the hero screenshot in this language now; its <img> gets its URL further down */
+  try {
+    var pl = document.createElement("link");
+    pl.rel = "preload"; pl.as = "image"; pl.type = "image/webp";
+    pl.href = "img/develop-" + l + ".webp";
+    pl.setAttribute("fetchpriority", "high");
+    document.head.appendChild(pl);
+  } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="styles.css">
+<script src="main.js" defer></script>
+</head>
+<body id="top">
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-gh" viewBox="0 0 16 16"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></symbol>
+  <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8M10.5 7.5v6M7.5 10.5h6"/></symbol>
+</svg>
+<a class="skip-link" href="#main" data-i18n="nav.skip">Saltar al contenido</a>
+
+<header class="site-header">
+  <nav class="nav container" data-i18n-attr="aria-label:nav.label" aria-label="Principal">
+    <a class="brand" href="#top">
+      <img src="img/belka_icon.svg" width="32" height="32" alt="">
+      <span>Belka</span>
+    </a>
+    <div class="nav-menu" id="nav-menu">
+      <ul class="nav-links">
+        <li><a href="#como-funciona" data-i18n="nav.how">Cómo funciona</a></li>
+        <li><a href="#funciones" data-i18n="nav.features">Funciones</a></li>
+        <li><a href="#galeria" data-i18n="nav.gallery">Galería</a></li>
+        <li><a href="#camaras" data-i18n="nav.cameras">Cámaras</a></li>
+        <li><a href="#instalar" data-i18n="nav.install">Instalar</a></li>
+        <li><a href="#faq" data-i18n="nav.faq">Preguntas</a></li>
+      </ul>
+    </div>
+    <div class="nav-actions">
+      <div class="lang-switch" role="group" data-i18n-attr="aria-label:nav.lang" aria-label="Idioma">
+        <button type="button" data-lang="es" aria-pressed="true" lang="es"><span aria-hidden="true">ES</span><span class="sr-only">Español</span></button>
+        <button type="button" data-lang="en" aria-pressed="false" lang="en"><span aria-hidden="true">EN</span><span class="sr-only">English</span></button>
+      </div>
+      <a class="btn btn-ghost btn-sm nav-gh" href="https://github.com/ROMERUU-dev/belka">
+        <svg class="i-gh" width="18" height="18" aria-hidden="true"><use href="#i-gh"/></svg>
+        <span>GitHub</span>
+      </a>
+      <button class="menu-btn" type="button" aria-expanded="false" aria-controls="nav-menu" data-i18n-attr="aria-label:nav.menu" aria-label="Menú">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16"/><path class="m-close" d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ============================== HERO -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="container hero-inner">
+      <img class="hero-logo reveal" src="img/belka_icon.svg" width="76" height="76" alt="">
+      <p class="pill reveal"><span class="pill-dot" aria-hidden="true"></span><span data-i18n="hero.pill">v0.3 · Libre y de código abierto</span></p>
+      <h1 id="hero-title" class="hero-title reveal">
+        <span data-i18n="hero.t1">Tu cámara escanea película.</span>
+        <span class="grad" data-i18n="hero.t2">Tu pantalla es la luz.</span>
+      </h1>
+      <p class="lead reveal" data-i18n="hero.lead">Belka convierte la pantalla de tu computadora en un panel de luz calibrado, controla tu cámara por USB e invierte cada negativo según la densidad de la película. Después lo revelas con herramientas al estilo Lightroom Classic, todo en una sola app.</p>
+      <div class="cta-row reveal">
+        <a class="btn btn-primary" href="https://github.com/ROMERUU-dev/belka">
+          <svg class="i-gh" width="20" height="20" aria-hidden="true"><use href="#i-gh"/></svg>
+          <span data-i18n="cta.get">Obtener en GitHub</span>
+        </a>
+        <a class="btn btn-ghost" href="#funciones">
+          <span data-i18n="cta.features">Ver funciones</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" class="i-stroke" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+        </a>
+      </div>
+      <ul class="hero-meta reveal" role="list">
+        <li data-i18n="hero.m1">Gratis</li>
+        <li data-i18n="hero.m2">Licencia MIT</li>
+        <li data-i18n="hero.m3">Linux</li>
+        <li data-i18n="hero.m4">Español e inglés</li>
+      </ul>
+    </div>
+
+    <div class="hero-shot container reveal">
+      <div class="strip-deco" aria-hidden="true">
+        <span class="sprockets"></span>
+        <span class="edge-print">BELKA 400 &#9656; 12 &#9656; 12A &#9656; 13 &#9656; 13A &#9656; 14 &#9656; 14A &#9656; 15 &#9656; 15A &#9656; 16</span>
+        <span class="sprockets"></span>
+      </div>
+      <div class="window">
+        <div class="window-bar" aria-hidden="true">
+          <span class="window-title" data-i18n="hero.wintitle">Belka — Revelado</span>
+          <span class="window-btns"><i></i><i></i><i></i></span>
+        </div>
+        <picture class="hero-pic">
+          <source type="image/webp" data-shot="develop">
+          <img class="window-img" data-shot="develop" width="1600" height="1000" fetchpriority="high"
+               data-i18n-attr="alt:shot.develop.alt"
+               alt="Belka en el módulo Revelado: la foto ya invertida al centro, con el histograma y los paneles de ajuste a la derecha.">
+        </picture>
+        <script>/* The hero URLs are set here, in the page's language, and not in the markup:
+                   that way a browser never downloads the other language's copy first. */
+          (function (p) {
+            var b = "img/develop-" + (document.documentElement.lang === "en" ? "en" : "es");
+            p.querySelector("source").srcset = b + ".webp";
+            p.querySelector("img").src = b + ".png";
+          })(document.currentScript.previousElementSibling);</script>
+        <noscript><img class="window-img" src="img/develop-es.png" width="1600" height="1000" alt="Belka en el módulo Revelado: la foto ya invertida al centro, con el histograma y los paneles de ajuste a la derecha."></noscript>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== FACTS (film strip) -->
+  <section class="facts" data-i18n-attr="aria-label:facts.label" aria-label="Belka en cifras">
+    <span class="sprockets sprockets-amber" aria-hidden="true"></span>
+    <ul class="facts-list container">
+      <li class="fact reveal">
+        <span class="fact-num">44</span>
+        <span class="fact-label" data-i18n="facts.f1">perfiles de película: <span class="nw">C-41</span>, <span class="nw">ECN-2</span>, B/N y diapositiva</span>
+      </li>
+      <li class="fact reveal">
+        <span class="fact-num">9</span>
+        <span class="fact-label" data-i18n="facts.f2">marcas de cámara con tabla de controles</span>
+      </li>
+      <li class="fact reveal">
+        <span class="fact-num" data-i18n="facts.n3">16 bits</span>
+        <span class="fact-label" data-i18n="facts.f3">TIFF con perfil sRGB al exportar</span>
+      </li>
+      <li class="fact reveal">
+        <span class="fact-num">100 %</span>
+        <span class="fact-label" data-i18n="facts.f4">local: sin cuenta, sin nube, sin telemetría</span>
+      </li>
+    </ul>
+    <span class="sprockets sprockets-amber" aria-hidden="true"></span>
+  </section>
+
+  <!-- ============================== HOW IT WORKS -->
+  <section class="section" id="como-funciona" aria-labelledby="how-title">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="kicker" data-i18n="how.kicker">Cómo funciona</p>
+        <h2 id="how-title" class="section-title" data-i18n="how.title">Tres pasos, del negativo al positivo.</h2>
+        <p class="section-intro" data-i18n="how.intro">No necesitas un escáner: una cámara con objetivo macro, un estativo y la pantalla que ya tienes.</p>
+      </header>
+
+      <div class="how-grid">
+        <figure class="diagram reveal">
+          <svg viewBox="0 0 600 410" role="img" aria-labelledby="dg-title">
+            <title id="dg-title" data-i18n="dg.title">Esquema del montaje: la cámara en un estativo apunta hacia abajo, a la película colocada sobre un difusor, encima de la pantalla acostada que la ilumina.</title>
+            <defs>
+              <linearGradient id="dg-beam" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#5fe3f0" stop-opacity=".42"/>
+                <stop offset=".55" stop-color="#00a6b8" stop-opacity=".14"/>
+                <stop offset="1" stop-color="#00a6b8" stop-opacity=".03"/>
+              </linearGradient>
+              <radialGradient id="dg-glow" cx=".5" cy=".5" r=".5">
+                <stop offset="0" stop-color="#7beefa" stop-opacity=".55"/>
+                <stop offset="1" stop-color="#00a6b8" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <!-- table -->
+            <path class="dg-table" d="M14 364H566"/>
+            <!-- copy stand -->
+            <rect class="dg-metal" x="34" y="350" width="152" height="14" rx="3"/>
+            <rect class="dg-metal" x="62" y="36" width="12" height="316" rx="3"/>
+            <rect class="dg-metal-2" x="54" y="84" width="30" height="38" rx="5"/>
+            <rect class="dg-metal" x="84" y="96" width="150" height="12" rx="3"/>
+            <!-- light beam -->
+            <path d="M196 340H378L306 190H268Z" fill="url(#dg-beam)"/>
+            <path class="dg-axis" d="M287 196V338"/>
+            <!-- camera -->
+            <rect class="dg-cam" x="228" y="64" width="118" height="62" rx="11"/>
+            <rect class="dg-cam" x="268" y="50" width="38" height="18" rx="4"/>
+            <circle class="dg-cam-dot" cx="318" cy="80" r="4"/>
+            <rect class="dg-lens" x="263" y="126" width="48" height="60" rx="4"/>
+            <path class="dg-lens-ring" d="M263 140H311M263 150H311"/>
+            <rect x="269" y="183" width="36" height="5" rx="2" fill="#5fe3f0" opacity=".85"/>
+            <!-- film, diffuser, spacers -->
+            <rect class="dg-film" x="202" y="306" width="170" height="7" rx="1.5"/>
+            <rect class="dg-diffuser" x="188" y="314" width="198" height="6" rx="1.5"/>
+            <rect class="dg-metal-2" x="192" y="320" width="10" height="22" rx="2"/>
+            <rect class="dg-metal-2" x="372" y="320" width="10" height="22" rx="2"/>
+            <!-- screen glow + laptop lying flat -->
+            <ellipse cx="287" cy="340" rx="150" ry="22" fill="url(#dg-glow)"/>
+            <rect class="dg-device" x="150" y="344" width="274" height="14" rx="4"/>
+            <rect x="160" y="340" width="254" height="5" rx="2.5" fill="#e9fdff"/>
+            <rect class="dg-device" x="428" y="350" width="112" height="8" rx="3"/>
+            <path class="dg-keys" d="M440 348h10M456 348h10M472 348h10M488 348h10M504 348h10M520 348h8"/>
+            <!-- labels -->
+            <path class="dg-leader" d="M350 95H366"/>
+            <text class="dg-label" x="372" y="100" data-i18n="dg.camera">Cámara + macro</text>
+            <path class="dg-leader" d="M74 230H94"/>
+            <text class="dg-label" x="100" y="235" data-i18n="dg.stand">Estativo</text>
+            <path class="dg-leader" d="M374 309L404 286H414"/>
+            <text class="dg-label dg-amber" x="420" y="291" data-i18n="dg.film">Película</text>
+            <path class="dg-leader" d="M388 317L404 318H414"/>
+            <text class="dg-label" x="420" y="323" data-i18n="dg.diffuser">Difusor</text>
+            <path class="dg-dim" d="M176 306V340M171 306H181M171 340H181"/>
+            <text class="dg-label dg-amber" x="164" y="329" text-anchor="end">5–10 mm</text>
+            <text class="dg-label dg-cyan" x="287" y="394" text-anchor="middle" data-i18n="dg.screen">Pantalla acostada = luz</text>
+          </svg>
+        </figure>
+
+        <ol class="steps">
+          <li class="step reveal">
+            <span class="step-num" aria-hidden="true">01</span>
+            <div>
+              <h3 data-i18n="how.s1.t">Acuesta la pantalla</h3>
+              <p data-i18n="how.s1.d">Abre la laptop a 180° o acuesta un monitor. Belka ilumina solo el área del formato, medida en milímetros reales, y deja el resto en negro para evitar destellos.</p>
+            </div>
+          </li>
+          <li class="step reveal">
+            <span class="step-num" aria-hidden="true">02</span>
+            <div>
+              <h3 data-i18n="how.s2.t">Película encima, cámara arriba</h3>
+              <p data-i18n="how.s2.d">Coloca la tira sobre un difusor, a <span class="nw">5–10 mm</span> de la pantalla, y la cámara en un estativo, perpendicular, con objetivo macro.</p>
+            </div>
+          </li>
+          <li class="step reveal">
+            <span class="step-num" aria-hidden="true">03</span>
+            <div>
+              <h3 data-i18n="how.s3.t">Captura y obtén positivos</h3>
+              <p data-i18n="how.s3.d">Enfoca con la vista en vivo ampliada, dispara desde la app y Belka invierte el negativo con el perfil de tu película. Listo para revelar.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== FEATURES -->
+  <section class="section section-alt" id="funciones" aria-labelledby="feat-title">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="kicker" data-i18n="feat.kicker">Funciones</p>
+        <h2 id="feat-title" class="section-title" data-i18n="feat.title">Todo el cuarto oscuro, en una ventana.</h2>
+        <p class="section-intro" data-i18n="feat.intro">De la luz a la exportación, cada paso está pensado para película. Se acabó invertir a mano con curvas.</p>
+      </header>
+
+      <ul class="features-grid">
+        <li class="feature wide reveal">
+          <div class="feature-body">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h7M15 6h5M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="13" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></svg></span>
+          <h3 data-i18n="f.dev.t">Revelado al estilo Lightroom Classic</h3>
+          <p data-i18n="f.dev.d">Un histograma que se arrastra por zonas; paneles Básico, Curva de tonos, HSL, Gradación de color, Detalle, Óptica, Transformar y Efectos; antes/después y aviso de recorte de tonos. Los atajos de teclado son los de Lightroom donde existen.</p>
+          <ul class="chips" data-i18n="f.dev.chips">
+            <li>Básico</li><li>Curva de tonos</li><li>HSL / Color</li><li>Gradación de color</li><li>Detalle</li><li>Óptica</li><li>Transformar</li><li>Efectos</li>
+          </ul>
+          </div>
+          <div class="feature-art art-develop" aria-hidden="true">
+            <svg viewBox="0 0 320 236">
+              <defs>
+                <linearGradient id="h-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3fd6e6" stop-opacity=".55"/><stop offset="1" stop-color="#3fd6e6" stop-opacity=".04"/></linearGradient>
+                <linearGradient id="h-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2a33a" stop-opacity=".5"/><stop offset="1" stop-color="#f2a33a" stop-opacity=".04"/></linearGradient>
+                <linearGradient id="h-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaf3f4" stop-opacity=".42"/><stop offset="1" stop-color="#eaf3f4" stop-opacity=".03"/></linearGradient>
+                <linearGradient id="t-temp" x1="0" x2="1"><stop offset="0" stop-color="#3f7fd6"/><stop offset=".5" stop-color="#d9e4e6"/><stop offset="1" stop-color="#f2a33a"/></linearGradient>
+                <linearGradient id="t-tint" x1="0" x2="1"><stop offset="0" stop-color="#47b26b"/><stop offset=".5" stop-color="#d9e4e6"/><stop offset="1" stop-color="#c25bc4"/></linearGradient>
+                <linearGradient id="t-exp" x1="0" x2="1"><stop offset="0" stop-color="#0b1012"/><stop offset="1" stop-color="#eaf3f4"/></linearGradient>
+              </defs>
+              <rect x=".5" y=".5" width="319" height="235" rx="12" class="art-panel"/>
+              <!-- histogram -->
+              <rect x="16" y="16" width="288" height="96" rx="6" class="art-well"/>
+              <rect x="131" y="16" width="58" height="96" class="art-zone"/>
+              <path d="M16 112C40 108 52 70 72 66S104 92 124 80 150 34 172 40 204 84 228 78 262 50 280 74 298 104 304 110V112Z" fill="url(#h-w)"/>
+              <path d="M16 112C36 110 48 88 66 84S98 98 120 88 148 54 170 58 206 96 232 90 268 64 286 84 300 108 304 112Z" fill="url(#h-c)"/>
+              <path d="M16 112C44 111 60 96 80 92S112 72 136 70 166 88 190 80 222 44 246 50 278 92 292 102 300 110 304 112Z" fill="url(#h-a)"/>
+              <path d="M74 112V16M131 112V16M189 112V16M246 112V16" class="art-grid"/>
+              <!-- sliders -->
+              <rect x="16" y="140" width="288" height="4" rx="2" fill="url(#t-temp)" opacity=".75"/>
+              <circle cx="190" cy="142" r="7" class="art-knob"/>
+              <rect x="16" y="170" width="288" height="4" rx="2" fill="url(#t-tint)" opacity=".75"/>
+              <circle cx="152" cy="172" r="7" class="art-knob"/>
+              <rect x="16" y="200" width="288" height="4" rx="2" fill="url(#t-exp)" opacity=".8"/>
+              <circle cx="214" cy="202" r="7" class="art-knob"/>
+            </svg>
+          </div>
+        </li>
+        <li class="feature reveal">
+          <span class="icon icon-amber" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M5 7h2M5 11h2M5 15h2M17 7h2M17 11h2M17 15h2M10 8h4v8h-4z"/></svg></span>
+          <h3 data-i18n="f.film.t">44 perfiles, inversión por densidad</h3>
+          <p data-i18n="f.film.d">Belka mide la base de la película en el borde e invierte por densidad, canal por canal. Incluye perfiles <span class="nw">C-41</span>, <span class="nw">ECN-2</span>, blanco y negro y diapositiva, y puedes guardar los tuyos desde un rollo real.</p>
+          <ul class="chips chips-amber">
+            <li>C-41</li><li>ECN-2</li><li data-i18n="f.film.bw">B/N</li><li>E-6</li>
+          </ul>
+        </li>
+
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><rect x="8.5" y="7.5" width="7" height="5" rx=".6"/><path d="M3 20h18M6 20v-2M10 20v-1.2M14 20v-1.2M18 20v-2"/></svg></span>
+          <h3 data-i18n="f.light.t">Panel de luz calibrado en mm</h3>
+          <p data-i18n="f.light.d">Formatos de 35 mm a 4×5 en milímetros reales, con marcas de registro. Luz blanca, tinte calibrado contra la máscara naranja o RGB secuencial: tres tomas combinadas, como un escáner.</p>
+        </li>
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.2"/></svg></span>
+          <h3 data-i18n="f.cap.t">Captura con la cámara conectada</h3>
+          <p data-i18n="f.cap.d">ISO, velocidad, diafragma y foco desde la app por USB, con una vista en vivo ya invertida y ampliación de <span class="nw">1 a 8×</span> para enfocar sobre el grano.</p>
+        </li>
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7.5 9a5 5 0 0 0 0 6M16.5 9a5 5 0 0 1 0 6"/><circle cx="12" cy="12" r="1.2"/></svg></span>
+          <h3 data-i18n="f.flat.t">Flat-field</h3>
+          <p data-i18n="f.flat.d">Una toma de la luz sin película corrige el viñeteo del objetivo y la luz desigual de la pantalla, para que el cielo no se oscurezca en las esquinas.</p>
+        </li>
+
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 19L16 8M14 6l4 4M16.5 3.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7zM6.5 5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2L4.8 6.7 6 6.2zM19 14l.5 1.2 1.2.5-1.2.5L19 17.4l-.5-1.2-1.2-.5 1.2-.5z"/></svg></span>
+          <h3 data-i18n="f.auto.t">Tono automático</h3>
+          <p data-i18n="f.auto.d">Un clic (Ctrl+U) ajusta exposición, contraste, altas luces, sombras, blancos y negros. Al capturar, Belka sugiere la velocidad que expone bien la base y la aplica a la cámara con un clic.</p>
+        </li>
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5h8l4 14H4z"/><path d="M8 3v18M16 3v18" stroke-dasharray="1.6 2.4"/></svg></span>
+          <h3 data-i18n="f.up.t">Upright y perspectiva guiada</h3>
+          <p data-i18n="f.up.d">Upright Auto, Nivel, Vertical o Completo. O traza de 2 a 4 guías sobre bordes que deban quedar rectos y la perspectiva se corrige sola; las guías se pueden mover después.</p>
+        </li>
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8v4l2.5 2.5"/><path d="M3.6 11a8.5 8.5 0 1 1 .7 4.4M3.5 19.5V15h4.5"/></svg></span>
+          <h3 data-i18n="f.roll.t">Rollos no destructivos</h3>
+          <p data-i18n="f.roll.d">Cada rollo es una carpeta con los RAW originales intactos. Historial con deshacer y rehacer, instantáneas, y ajustes que se copian, pegan y sincronizan entre fotogramas.</p>
+        </li>
+
+        <li class="feature reveal">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.8l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.1l-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z"/></svg></span>
+          <h3 data-i18n="f.lib.t">Estrellas, banderas y limpieza</h3>
+          <p data-i18n="f.lib.d">Califica de 0 a 5 estrellas, marca elegidas y rechazadas, y borra de una vez las capturas fallidas: van a la papelera, así que se pueden recuperar.</p>
+        </li>
+        <li class="feature wide reveal">
+          <div class="feature-body">
+          <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M13.5 3L19 8.5V12M13.5 3v5.5H19"/><path d="M15 18h6M18.5 15.5L21 18l-2.5 2.5"/></svg></span>
+          <h3 data-i18n="f.exp.t">Exportación en TIFF de 16 bits</h3>
+          <p data-i18n="f.exp.d">TIFF de 16 bits y JPEG con perfil ICC sRGB, listos para imprimir o compartir. O una versión plana y lineal para seguir editando en darktable o RawTherapee.</p>
+          <ul class="chips" data-i18n="f.exp.chips">
+            <li>TIFF 16 bits</li><li>JPEG sRGB</li><li>Plana lineal</li>
+          </ul>
+          </div>
+          <div class="feature-art art-export" aria-hidden="true">
+            <svg viewBox="0 0 320 196">
+              <defs>
+                <linearGradient id="g-smooth" x1="0" x2="1"><stop offset="0" stop-color="#0e1112"/><stop offset="1" stop-color="#f0f6f7"/></linearGradient>
+                <clipPath id="c-band"><rect x="16" y="44" width="288" height="40" rx="6"/></clipPath>
+              </defs>
+              <rect x=".5" y=".5" width="319" height="195" rx="12" class="art-panel"/>
+              <text x="16" y="30" class="art-label">JPEG · 8 bit</text>
+              <g clip-path="url(#c-band)"><rect x="16" y="44" width="18.5" height="40" fill="#0e0e0e"/><rect x="34" y="44" width="18.5" height="40" fill="#1d1d1e"/><rect x="52" y="44" width="18.5" height="40" fill="#2c2c2d"/><rect x="70" y="44" width="18.5" height="40" fill="#3b3c3d"/><rect x="88" y="44" width="18.5" height="40" fill="#4a4b4c"/><rect x="106" y="44" width="18.5" height="40" fill="#595a5c"/><rect x="124" y="44" width="18.5" height="40" fill="#686a6c"/><rect x="142" y="44" width="18.5" height="40" fill="#77797b"/><rect x="160" y="44" width="18.5" height="40" fill="#86888b"/><rect x="178" y="44" width="18.5" height="40" fill="#95979a"/><rect x="196" y="44" width="18.5" height="40" fill="#a4a7aa"/><rect x="214" y="44" width="18.5" height="40" fill="#b3b6ba"/><rect x="232" y="44" width="18.5" height="40" fill="#c2c5c9"/><rect x="250" y="44" width="18.5" height="40" fill="#d1d5d9"/><rect x="268" y="44" width="18.5" height="40" fill="#e0e4e8"/><rect x="286" y="44" width="18.5" height="40" fill="#f0f4f9"/></g>
+              <text x="16" y="124" class="art-label art-label-hi">TIFF · 16 bit</text>
+              <rect x="16" y="138" width="288" height="40" rx="6" fill="url(#g-smooth)"/>
+            </svg>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================== GALLERY -->
+  <section class="section" id="galeria" aria-labelledby="gal-title">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="kicker" data-i18n="gal.kicker">Galería</p>
+        <h2 id="gal-title" class="section-title" data-i18n="gal.title">Mira Belka por dentro.</h2>
+        <p class="section-intro" data-i18n="gal.intro">Capturas de pantalla de la versión 0.3. Abre cualquiera para verla en grande.</p>
+      </header>
+
+      <ul class="gallery-grid">
+        <li class="g-item g-big reveal">
+          <figure>
+            <button class="shot" type="button" data-index="0" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/develop-es.webp" data-shot="develop"><img data-shot="develop" src="img/develop-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.develop.alt" alt="Belka en el módulo Revelado: la foto ya invertida al centro, con el histograma y los paneles de ajuste a la derecha."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.develop.t">Revelado</strong> <span data-i18n="g.develop.d">Histograma que se arrastra y paneles al estilo Lightroom Classic.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item g-big reveal">
+          <figure>
+            <button class="shot" type="button" data-index="1" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/curve-es.webp" data-shot="curve"><img data-shot="curve" src="img/curve-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.curve.alt" alt="El panel Curva de tonos con una curva por puntos sobre el histograma."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.curve.t">Curva de tonos</strong> <span data-i18n="g.curve.d">Paramétrica y por puntos, en RGB o canal por canal.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="2" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/crop-es.webp" data-shot="crop"><img data-shot="crop" src="img/crop-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.crop.alt" alt="Recortar y enderezar: la tira completa, girada, con el recuadro de recorte dentro del fotograma."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.crop.t">Recortar y enderezar</strong> <span data-i18n="g.crop.d">El recorte se queda dentro del fotograma, sin borde de película.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="3" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/guided-es.webp" data-shot="guided"><img data-shot="guided" src="img/guided-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.guided.alt" alt="Upright guiado: dos guías trazadas sobre los bordes de unos edificios enderezan las verticales."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.guided.t">Upright guiado</strong> <span data-i18n="g.guided.d">Traza de 2 a 4 guías y la perspectiva se corrige.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="4" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/compare-es.webp" data-shot="compare"><img data-shot="compare" src="img/compare-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.compare.alt" alt="Antes y después con un divisor: a la izquierda la foto sin los ajustes de revelado y a la derecha con ellos."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.compare.t">Antes y después</strong> <span data-i18n="g.compare.d">Con un divisor que se arrastra o lado a lado.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="5" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/library-es.webp" data-shot="library"><img data-shot="library" src="img/library-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.library.alt" alt="El módulo Biblioteca con la cuadrícula de fotogramas del rollo, estrellas y banderas."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.library.t">Biblioteca</strong> <span data-i18n="g.library.d">Todo el rollo de un vistazo, con estrellas y banderas.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="6" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/capture-es.webp" data-shot="capture"><img data-shot="capture" src="img/capture-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.capture.alt" alt="El módulo Captura: los controles de la cámara conectada por USB, la vista en vivo ya invertida y los ajustes del panel de luz."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.capture.t">Captura</strong> <span data-i18n="g.capture.d">Velocidad, diafragma, ISO y foco, con la vista en vivo ya invertida.</span></figcaption>
+          </figure>
+        </li>
+        <li class="g-item reveal">
+          <figure>
+            <button class="shot" type="button" data-index="7" aria-haspopup="dialog">
+              <span class="shot-frame"><picture><source type="image/webp" srcset="img/light-es.webp" data-shot="light"><img data-shot="light" src="img/light-es.png" width="1600" height="1000" loading="lazy" decoding="async" data-i18n-attr="alt:shot.light.alt" alt="El panel de luz: la zona del formato iluminada con tinte calibrado y marcas de registro, y el resto de la pantalla en negro."></picture></span>
+              <span class="shot-zoom" aria-hidden="true"><svg><use href="#i-zoom"/></svg></span>
+            </button>
+            <figcaption><strong data-i18n="g.light.t">Panel de luz</strong> <span data-i18n="g.light.d">La zona del formato, en milímetros reales.</span></figcaption>
+          </figure>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================== CAMERAS -->
+  <section class="section section-alt" id="camaras" aria-labelledby="cam-title">
+    <div class="container cams-grid">
+      <div class="cams-copy">
+        <header class="section-head section-head-left reveal">
+          <p class="kicker" data-i18n="cam.kicker">Cámaras</p>
+          <h2 id="cam-title" class="section-title" data-i18n="cam.title">Tu cámara, controlada desde la app.</h2>
+          <p class="section-intro" data-i18n="cam.intro">Belka habla con la cámara por USB mediante libgphoto2, la biblioteca libre de control de cámaras. Conecta, ajusta y dispara sin tocarla, así nada se mueve entre toma y toma.</p>
+        </header>
+
+        <div class="tested reveal">
+          <span class="badge badge-ok" data-i18n="cam.tested.badge">Probada</span>
+          <h3>Nikon D780</h3>
+          <p data-i18n="cam.tested.d">Conexión, vista en vivo y captura en NEF, probadas con la cámara real.</p>
+        </div>
+        <p class="note reveal" data-i18n="cam.import">¿Tu cámara no se controla por USB? Importa tus RAW (NEF, CR3, ARW, RAF, DNG y más), TIFF o JPEG, y Belka los invierte igual.</p>
+      </div>
+
+      <div class="cams-brands reveal">
+        <h3 class="brands-title" data-i18n="cam.brands.t">Tablas de controles por marca</h3>
+        <p class="brands-sub" data-i18n="cam.brands.d">Cada tabla indica el modo USB que hay que elegir en la cámara. La lista completa de modelos está en Captura → Cámaras compatibles.</p>
+        <ul class="brand-grid">
+          <li class="brand-tile is-tested"><span>Nikon</span><small>D780 ✓</small></li>
+          <li class="brand-tile"><span>Canon EOS</span></li>
+          <li class="brand-tile"><span>Sony Alpha</span></li>
+          <li class="brand-tile"><span>Fujifilm X / GFX</span></li>
+          <li class="brand-tile"><span>Panasonic Lumix</span></li>
+          <li class="brand-tile"><span>OM System / Olympus</span></li>
+          <li class="brand-tile"><span>Pentax / Ricoh</span></li>
+          <li class="brand-tile"><span>Sigma</span></li>
+          <li class="brand-tile"><span>Leica</span></li>
+        </ul>
+        <p class="fine" data-i18n="cam.honest">Solo la D780 se ha probado con una cámara real. En las demás, lo que puede hacer cada modelo depende de libgphoto2.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== INSTALL -->
+  <section class="section" id="instalar" aria-labelledby="inst-title">
+    <div class="container">
+      <div class="install-grid">
+        <div class="install-main">
+          <header class="section-head section-head-left reveal">
+            <p class="kicker" data-i18n="inst.kicker">Instalar</p>
+            <h2 id="inst-title" class="section-title" data-i18n="inst.title">Tres comandos y a escanear.</h2>
+            <p class="section-intro" data-i18n="inst.intro">Para Ubuntu y otras distribuciones Linux. Sin sudo: el instalador crea su propio entorno de Python, el comando <code>belka</code> y el icono en Aplicaciones.</p>
+          </header>
+
+          <div class="terminal reveal">
+            <div class="terminal-bar">
+              <span class="terminal-title" data-i18n="inst.term">Terminal</span>
+              <button class="copy-btn" type="button" data-copy="#install-cmds">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+                <span data-i18n="inst.copy">Copiar</span>
+              </button>
+            </div>
+<pre id="install-cmds"><code class="cmd"><span class="prompt" aria-hidden="true">$ </span>git clone https://github.com/ROMERUU-dev/belka.git</code><code class="cmd"><span class="prompt" aria-hidden="true">$ </span>cd belka</code><code class="cmd"><span class="prompt" aria-hidden="true">$ </span>./scripts/install.sh</code></pre>
+          </div>
+          <p class="after reveal" data-i18n="inst.after">Después abre Belka desde Aplicaciones o escribe <code>belka</code>. Para quitarla: <code>./scripts/uninstall.sh</code> (tus rollos se quedan).</p>
+        </div>
+
+        <aside class="req reveal" data-i18n-attr="aria-label:inst.req.label" aria-label="Requisitos">
+          <h3 data-i18n="inst.req.sw">Software</h3>
+          <ul class="checks">
+            <li data-i18n="inst.req.sw1">Ubuntu 26.04 (donde se prueba) u otra distribución Linux <span class="nw">x86-64</span></li>
+            <li data-i18n="inst.req.sw2">Python 3.11 o más reciente, con <code>python3-venv</code></li>
+            <li data-i18n="inst.req.sw3">Tu usuario en el grupo <code>plugdev</code> para usar la cámara</li>
+          </ul>
+          <h3 data-i18n="inst.req.hw">Montaje</h3>
+          <ul class="checks">
+            <li data-i18n="inst.req.hw1">Cámara con RAW y objetivo macro</li>
+            <li data-i18n="inst.req.hw2">Estativo de reproducción o tripié</li>
+            <li data-i18n="inst.req.hw3">Difusor: acrílico opalino de <span class="nw">2–3 mm</span> o papel vegetal</li>
+            <li data-i18n="inst.req.hw4">Una pantalla con buen brillo: laptop a 180° o monitor acostado</li>
+          </ul>
+        </aside>
+      </div>
+
+      <div class="platforms reveal">
+        <div class="platforms-head">
+          <h3 data-i18n="plat.title">Hoy en Linux. Después, en más plataformas.</h3>
+          <p data-i18n="plat.sub">Hoja de ruta en orden de prioridad, sin fechas comprometidas.</p>
+        </div>
+        <ol class="roadmap">
+          <li class="rm is-now">
+            <span class="status" data-i18n="plat.now">Disponible</span>
+            <h4>Linux x86-64</h4>
+            <p data-i18n="plat.p1">Script de instalación hoy; paquete .deb / AppImage en camino.</p>
+          </li>
+          <li class="rm">
+            <span class="status" data-i18n="plat.planned">Planeado</span>
+            <h4>Linux ARM64</h4>
+            <p data-i18n="plat.p2">Todas las dependencias existen para ARM; se probará en Raspberry Pi 5.</p>
+          </li>
+          <li class="rm">
+            <span class="status" data-i18n="plat.planned">Planeado</span>
+            <h4>macOS Apple Silicon</h4>
+            <p data-i18n="plat.p3">App firmada y notarizada (.dmg).</p>
+          </li>
+          <li class="rm">
+            <span class="status" data-i18n="plat.planned">Planeado</span>
+            <h4>Windows x64</h4>
+            <p data-i18n="plat.p4">Primero con una carpeta vigilada: el software del fabricante de tu cámara dispara y Belka invierte cada toma en cuanto llega. Después, control de cámara nativo.</p>
+          </li>
+          <li class="rm">
+            <span class="status" data-i18n="plat.later">Más adelante</span>
+            <h4>macOS Intel · Windows ARM64</h4>
+            <p data-i18n="plat.p5">Secundarias, por limitaciones de las dependencias en esas plataformas.</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== FAQ -->
+  <section class="section section-alt" id="faq" aria-labelledby="faq-title">
+    <div class="container faq-wrap">
+      <header class="section-head reveal">
+        <p class="kicker" data-i18n="faq.kicker">Preguntas frecuentes</p>
+        <h2 id="faq-title" class="section-title" data-i18n="faq.title">Lo que conviene saber.</h2>
+      </header>
+
+      <div class="faq-list">
+        <details class="reveal">
+          <summary data-i18n="faq.q1">¿Por qué usar la pantalla como fuente de luz?</summary>
+          <div class="answer" data-i18n="faq.a1">
+            <p>Porque ya la tienes, y Belka la controla con precisión: ilumina solo el formato, en milímetros reales; puede teñir la luz para neutralizar la máscara naranja, o hacer tres tomas en rojo, verde y azul puros, como un escáner. Tres cuidados:</p>
+            <ul>
+              <li><strong>Difusor a <span class="nw">5–10 mm</span>.</strong> Si la película toca la pantalla, la rejilla de píxeles sale en la foto.</li>
+              <li><strong><span class="nw">1/30 s</span> o más lento.</strong> Muchas pantallas atenúan el brillo con PWM y, a velocidades rápidas, aparecen bandas.</li>
+              <li><strong>Luz nocturna apagada.</strong> Tiñe la luz y cambia con la hora. Belka avisa y, en GNOME, puede pausarla mientras está abierta.</li>
+            </ul>
+          </div>
+        </details>
+        <details class="reveal">
+          <summary data-i18n="faq.q2">¿Sustituye a un escáner de película?</summary>
+          <div class="answer" data-i18n="faq.a2">
+            <p>Puede hacerlo: digitalizar con cámara es rápido y la resolución la ponen tu cámara y tu objetivo macro. El modo RGB secuencial separa el color como lo hace un escáner. Lo que no tiene: limpieza de polvo por infrarrojo (tipo Digital ICE) ni avance automático de la tira; la captura en serie de un rollo completo está en la hoja de ruta.</p>
+          </div>
+        </details>
+        <details class="reveal">
+          <summary data-i18n="faq.q3">¿Trabaja con RAW?</summary>
+          <div class="answer" data-i18n="faq.a3">
+            <p>Sí, y es lo recomendado. Captura en RAW desde la cámara e importa RAW de casi cualquier marca gracias a LibRaw (NEF, CR2, CR3, ARW, RAF, RW2, ORF, PEF, DNG y más), además de TIFF y JPEG. La inversión trabaja sobre los datos lineales del sensor y los archivos originales nunca se modifican.</p>
+          </div>
+        </details>
+        <details class="reveal">
+          <summary data-i18n="faq.q4">¿Qué tan precisos son los perfiles de película?</summary>
+          <div class="answer" data-i18n="faq.a4">
+            <p>Los 44 perfiles incluidos salen de curvas características publicadas y son aproximados. Para afinarlos con tu cámara y tu luz, revela un fotograma con buena base y un gris neutro y usa <strong>Guardar como perfil de película</strong>: el perfil mide las pendientes reales y queda listo para el resto del rollo.</p>
+          </div>
+        </details>
+        <details class="reveal">
+          <summary data-i18n="faq.q5">¿Mis fotos se suben a algún lado?</summary>
+          <div class="answer" data-i18n="faq.a5">
+            <p>No. Belka funciona por completo en tu computadora: sin cuenta, sin nube y sin telemetría. Tus rollos son carpetas normales en tu disco.</p>
+          </div>
+        </details>
+        <details class="reveal">
+          <summary data-i18n="faq.q6">¿Cuánto cuesta?</summary>
+          <div class="answer" data-i18n="faq.a6">
+            <p>Nada. Belka es software libre con licencia MIT: puedes usarlo, estudiarlo, modificarlo y compartirlo. El código está en <a href="https://github.com/ROMERUU-dev/belka">GitHub</a>.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== FINAL CTA -->
+  <section class="cta-final" aria-labelledby="cta-title">
+    <span class="sprockets" aria-hidden="true"></span>
+    <div class="container cta-inner reveal">
+      <img src="img/belka_icon.svg" width="64" height="64" alt="" loading="lazy">
+      <h2 id="cta-title" data-i18n="final.title">Tus negativos merecen volver a ver la luz.</h2>
+      <p data-i18n="final.sub">Gratis, de código abierto y hecho para película.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/ROMERUU-dev/belka">
+          <svg class="i-gh" width="20" height="20" aria-hidden="true"><use href="#i-gh"/></svg>
+          <span data-i18n="cta.get">Obtener en GitHub</span>
+        </a>
+        <a class="btn btn-ghost" href="#instalar" data-i18n="cta.install">Cómo instalar</a>
+      </div>
+    </div>
+    <span class="sprockets" aria-hidden="true"></span>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a class="brand" href="#top">
+        <img src="img/belka_icon.svg" width="32" height="32" alt="" loading="lazy">
+        <span>Belka</span>
+      </a>
+      <p data-i18n="foot.tag">Digitalización de negativos con tu cámara y tu pantalla como luz.</p>
+    </div>
+    <nav class="footer-links" data-i18n-attr="aria-label:foot.nav" aria-label="Proyecto">
+      <ul>
+        <li><a href="https://github.com/ROMERUU-dev/belka" data-i18n="foot.code">Código en GitHub</a></li>
+        <li><a href="https://github.com/ROMERUU-dev/belka/issues" data-i18n="foot.issues">Reportar un problema</a></li>
+        <li><a href="https://github.com/ROMERUU-dev/belka/blob/main/LICENSE" data-i18n="foot.license">Licencia MIT</a></li>
+      </ul>
+    </nav>
+    <p class="footer-made"><span data-i18n="foot.made">Hecho por</span> <a href="https://github.com/ROMERUU-dev">ROMERUU-dev</a></p>
+  </div>
+  <div class="container footer-bottom">
+    <p>© 2026 Juvenal Romero Pedraza · <span data-i18n="foot.mit">Software libre con licencia MIT.</span></p>
+    <p class="fine" data-i18n="foot.tm">Lightroom es una marca de Adobe; los nombres de cámaras y películas pertenecen a sus dueños. Belka no está afiliada con ellos.</p>
+  </div>
+</footer>
+
+<dialog class="lightbox" id="lightbox" data-i18n-attr="aria-label:lb.label" aria-label="Captura ampliada">
+  <div class="lb-top">
+    <p class="lb-count" aria-live="polite"></p>
+    <button class="lb-btn lb-close" type="button" data-i18n-attr="aria-label:lb.close" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <figure class="lb-figure">
+    <picture class="lb-pic"><source class="lb-src" type="image/webp"><img class="lb-img" alt=""></picture>
+    <figcaption class="lb-cap"></figcaption>
+  </figure>
+  <button class="lb-btn lb-prev" type="button" data-i18n-attr="aria-label:lb.prev" aria-label="Anterior">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <button class="lb-btn lb-next" type="button" data-i18n-attr="aria-label:lb.next" aria-label="Siguiente">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+</dialog>
+</body>
+</html>
