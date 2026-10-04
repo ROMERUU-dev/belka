@@ -32,7 +32,7 @@ def test_unknown_profile_falls_back_to_generic(library):
 
 def test_user_profile_round_trip_and_shadowing(tmp_path, library):
     lib = ProfileLibrary(user_dir=tmp_path)
-    mine = FilmProfile(id="user-portra", name="Portra (D780)", gamma=(0.55, 0.6, 0.7), builtin=False)
+    mine = FilmProfile(id="user-portra", name="Portra (mi cámara)", gamma=(0.55, 0.6, 0.7), builtin=False)
     path = lib.save_user_profile(mine)
     assert json.loads(path.read_text())["gamma"] == [0.55, 0.6, 0.7]
     again = ProfileLibrary(user_dir=tmp_path)
@@ -58,5 +58,5 @@ def test_invalid_gamma_rejected():
 
 
 def test_slugify():
-    assert slugify("Portra 400 (mi D780)") == "portra-400-mi-d780"
+    assert slugify("Portra 400 (mi equipo)") == "portra-400-mi-equipo"
     assert slugify("¡¿") == "perfil"

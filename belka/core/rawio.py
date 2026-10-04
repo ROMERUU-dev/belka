@@ -139,8 +139,8 @@ def _load_raw(path: Path, half_size: bool) -> LinearImage:
         black = float(np.mean(raw.black_level_per_channel))
         saturation = _camera_saturation(raw) or int(raw.white_level)
         # No LibRaw scaling at all: it would normalise to the 14-bit ceiling
-        # (16383) rather than where the sensor really clips (15311 on the
-        # D780), and rescale each image to its own brightest pixel. Unscaled,
+        # (16383) rather than where the sensor really clips (often lower,
+        # e.g. 15311), and rescale each image to its own brightest pixel. Unscaled,
         # the output is exactly raw minus black, so dividing by the usable
         # range makes 1.0 mean "clipped" in every frame of a roll.
         rgb16 = raw.postprocess(
@@ -184,7 +184,7 @@ def _camera_saturation(raw) -> int | None:
 
 
 def _crop_margins(rgb: np.ndarray, sizes, half_size: bool) -> np.ndarray:
-    """Drop the masked border LibRaw leaves around some sensors (8 px on the D780)."""
+    """Drop the masked border LibRaw leaves around some sensors (8 px on some Nikon NEFs)."""
     try:
         left, top = int(sizes.crop_left_margin), int(sizes.crop_top_margin)
         width, height = int(sizes.crop_width), int(sizes.crop_height)

@@ -15,7 +15,7 @@ from belka.core import edgeprint as ep
 from tests import dx_synth as ds
 
 # The data track of the code after "21A" on a real Kodak UltraMax 400 strip
-# (Nikon D780 capture), as Belka read it: DX 95-7, frame 21, half frame.
+# (a real capture), as Belka read it: DX 95-7, frame 21, half frame.
 REAL_21A = [1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]
 
 

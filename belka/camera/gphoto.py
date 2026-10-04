@@ -2,8 +2,7 @@
 
 Works with any camera libgphoto2 can remote-control (Nikon, Canon, Sony,
 Fujifilm, Panasonic, ...); the control names each brand uses come from
-``belka/data/cameras.json`` (see ``belka.camera.models``). The Nikon D780
-is model "Nikon DSC D780", USB 04b0:0446.
+``belka/data/cameras.json`` (see ``belka.camera.models``).
 """
 
 from __future__ import annotations

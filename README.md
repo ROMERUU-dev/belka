@@ -20,8 +20,7 @@ automáticamente** con perfiles por película, con un módulo de revelado al est
   una imagen con mejor separación de color (como un escáner).
 - **Cámara por USB (libgphoto2):** detección, conexión (libera la cámara si GNOME la montó como disco), ISO,
   velocidad, diafragma, calidad, destino, vista en vivo invertida con ampliación 1–8× para enfocar, foco motorizado
-  y autoenfoque. Pensada para la **Nikon D780** y funciona con cualquier cámara que libgphoto2 controle (Canon, Sony,
-  Fujifilm, Panasonic…).
+  y autoenfoque. Funciona con cualquier cámara que libgphoto2 controle (Nikon, Canon, Sony, Fujifilm, Panasonic…).
 - **Inversión por densidad** con 44 perfiles de película (C-41, ECN-2, B/N y diapositiva), base medida en el borde,
   gris neutro, temperatura/tinte, exposición, contraste, negros/blancos, saturación y curva de papel.
 - **Revelado como Lightroom Classic** (0.2): módulos Biblioteca · Captura · Revelado; barra de herramientas con
@@ -81,7 +80,7 @@ Para desarrollo: `python3 -m venv .venv && .venv/bin/pip install -r requirements
 3. **Brillo al máximo** y **luz nocturna desactivada**: tiñe la luz y cambia con la hora. Belka avisa y puede
    apagarla mientras está abierto.
 4. **1/30 s o más lento:** muchas pantallas atenúan con PWM y a velocidades rápidas aparecen bandas.
-5. Formato **RAW** (NEF). Exponer para que la base de la película quede alta sin saturarse.
+5. Formato **RAW**. Exponer para que la base de la película quede alta sin saturarse.
 
 Con **una sola pantalla**, el panel de luz ocupa la pantalla completa: se captura desde dentro con **Espacio** y
 **Esc** regresa a la app. Con **dos pantallas** (p. ej. la laptop acostada como luz y un monitor externo), el panel va
@@ -144,8 +143,7 @@ claridad) están en píxeles de resolución completa, para que la vista previa y
 
 ## Estado
 
-- Probado con la **Nikon D780** real (conexión, vista en vivo, captura y NEF); más de 600 pruebas automáticas
-  (`.venv/bin/python -m pytest`) con negativos sintéticos y una cámara de prueba.
+- Más de 700 pruebas automáticas (`.venv/bin/python -m pytest`) con negativos sintéticos y una cámara de prueba.
 - Otras plataformas (Windows, macOS, ARM): ver [docs/plataformas.md](docs/plataformas.md).
 - La 0.2 añade el revelado estilo Lightroom; el historial vive en memoria (se pierde al cerrar el rollo), las
   instantáneas se guardan en el rollo.

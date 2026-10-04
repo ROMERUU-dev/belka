@@ -435,7 +435,7 @@
       <header class="section-head reveal">
         <p class="kicker" data-i18n="gal.kicker">Galería</p>
         <h2 id="gal-title" class="section-title" data-i18n="gal.title">Mira Belka por dentro.</h2>
-        <p class="section-intro" data-i18n="gal.intro">Capturas de pantalla de la versión 0.3. Abre cualquiera para verla en grande.</p>
+        <p class="section-intro" data-i18n="gal.intro">Abre cualquier captura para verla en grande.</p>
       </header>
 
       <ul class="gallery-grid">
@@ -525,11 +525,6 @@
           <p class="section-intro" data-i18n="cam.intro">Belka habla con la cámara por USB mediante libgphoto2, la biblioteca libre de control de cámaras. Conecta, ajusta y dispara sin tocarla, así nada se mueve entre toma y toma.</p>
         </header>
 
-        <div class="tested reveal">
-          <span class="badge badge-ok" data-i18n="cam.tested.badge">Probada</span>
-          <h3>Nikon D780</h3>
-          <p data-i18n="cam.tested.d">Conexión, vista en vivo y captura en NEF, probadas con la cámara real.</p>
-        </div>
         <p class="note reveal" data-i18n="cam.import">¿Tu cámara no se controla por USB? Importa tus RAW (NEF, CR3, ARW, RAF, DNG y más), TIFF o JPEG, y Belka los invierte igual.</p>
       </div>
 
@@ -537,7 +532,7 @@
         <h3 class="brands-title" data-i18n="cam.brands.t">Tablas de controles por marca</h3>
         <p class="brands-sub" data-i18n="cam.brands.d">Cada tabla indica el modo USB que hay que elegir en la cámara. La lista completa de modelos está en Captura → Cámaras compatibles.</p>
         <ul class="brand-grid">
-          <li class="brand-tile is-tested"><span>Nikon</span><small>D780 ✓</small></li>
+          <li class="brand-tile"><span>Nikon</span></li>
           <li class="brand-tile"><span>Canon EOS</span></li>
           <li class="brand-tile"><span>Sony Alpha</span></li>
           <li class="brand-tile"><span>Fujifilm X / GFX</span></li>
@@ -547,7 +542,7 @@
           <li class="brand-tile"><span>Sigma</span></li>
           <li class="brand-tile"><span>Leica</span></li>
         </ul>
-        <p class="fine" data-i18n="cam.honest">Solo la D780 se ha probado con una cámara real. En las demás, lo que puede hacer cada modelo depende de libgphoto2.</p>
+        <p class="fine" data-i18n="cam.honest">Lo que puede hacer cada modelo (vista en vivo, foco remoto) depende de libgphoto2.</p>
       </div>
     </div>
   </section>
@@ -579,7 +574,7 @@
         <aside class="req reveal" data-i18n-attr="aria-label:inst.req.label" aria-label="Requisitos">
           <h3 data-i18n="inst.req.sw">Software</h3>
           <ul class="checks">
-            <li data-i18n="inst.req.sw1">Ubuntu 26.04 (donde se prueba) u otra distribución Linux <span class="nw">x86-64</span></li>
+            <li data-i18n="inst.req.sw1">Ubuntu 26.04 u otra distribución Linux <span class="nw">x86-64</span></li>
             <li data-i18n="inst.req.sw2">Python 3.11 o más reciente, con <code>python3-venv</code></li>
             <li data-i18n="inst.req.sw3">Tu usuario en el grupo <code>plugdev</code> para usar la cámara</li>
           </ul>
@@ -591,40 +586,6 @@
             <li data-i18n="inst.req.hw4">Una pantalla con buen brillo: laptop a 180° o monitor acostado</li>
           </ul>
         </aside>
-      </div>
-
-      <div class="platforms reveal">
-        <div class="platforms-head">
-          <h3 data-i18n="plat.title">Hoy en Linux. Después, en más plataformas.</h3>
-          <p data-i18n="plat.sub">Hoja de ruta en orden de prioridad, sin fechas comprometidas.</p>
-        </div>
-        <ol class="roadmap">
-          <li class="rm is-now">
-            <span class="status" data-i18n="plat.now">Disponible</span>
-            <h4>Linux x86-64</h4>
-            <p data-i18n="plat.p1">Script de instalación hoy; paquete .deb / AppImage en camino.</p>
-          </li>
-          <li class="rm">
-            <span class="status" data-i18n="plat.planned">Planeado</span>
-            <h4>Linux ARM64</h4>
-            <p data-i18n="plat.p2">Todas las dependencias existen para ARM; se probará en Raspberry Pi 5.</p>
-          </li>
-          <li class="rm">
-            <span class="status" data-i18n="plat.planned">Planeado</span>
-            <h4>macOS Apple Silicon</h4>
-            <p data-i18n="plat.p3">App firmada y notarizada (.dmg).</p>
-          </li>
-          <li class="rm">
-            <span class="status" data-i18n="plat.planned">Planeado</span>
-            <h4>Windows x64</h4>
-            <p data-i18n="plat.p4">Primero con una carpeta vigilada: el software del fabricante de tu cámara dispara y Belka invierte cada toma en cuanto llega. Después, control de cámara nativo.</p>
-          </li>
-          <li class="rm">
-            <span class="status" data-i18n="plat.later">Más adelante</span>
-            <h4>macOS Intel · Windows ARM64</h4>
-            <p data-i18n="plat.p5">Secundarias, por limitaciones de las dependencias en esas plataformas.</p>
-          </li>
-        </ol>
       </div>
     </div>
   </section>
@@ -652,7 +613,7 @@
         <details class="reveal">
           <summary data-i18n="faq.q2">¿Sustituye a un escáner de película?</summary>
           <div class="answer" data-i18n="faq.a2">
-            <p>Puede hacerlo: digitalizar con cámara es rápido y la resolución la ponen tu cámara y tu objetivo macro. El modo RGB secuencial separa el color como lo hace un escáner. Lo que no tiene: limpieza de polvo por infrarrojo (tipo Digital ICE) ni avance automático de la tira; la captura en serie de un rollo completo está en la hoja de ruta.</p>
+            <p>Puede hacerlo: digitalizar con cámara es rápido y la resolución la ponen tu cámara y tu objetivo macro. El modo RGB secuencial separa el color como lo hace un escáner, y la toma antipolvo encuentra el polvo y los rayones con la propia pantalla. Lo que no tiene es avance automático de la tira: cada fotograma se coloca a mano.</p>
           </div>
         </details>
         <details class="reveal">

@@ -38,7 +38,7 @@
       "id": "nikon",
       "name": "Nikon",
       "match": "^Nikon ",
-      "_comment": "D780 (probada): 'autoiso' (0xd054) es el ISO automático real; 'isoauto' dice On aunque el ISO quede fijo. 'shutterspeed' da segundos decimales ('0.0333s'); 'shutterspeed2' fracciones ('1/30').",
+      "_comment": "Réflex D: 'autoiso' (0xd054) es el ISO automático real; 'isoauto' dice On aunque el ISO quede fijo. 'shutterspeed' da segundos decimales ('0.0333s'); 'shutterspeed2' fracciones ('1/30').",
       "widgets": {
         "iso": ["iso"],
         "iso_auto": ["autoiso", "isoauto"],
@@ -96,15 +96,7 @@
             "en": "Setup menu → “USB” = PTP (not “Mass Storage”)."
           }
         }
-      ],
-      "models": {
-        "Nikon DSC D780": {
-          "notes": [
-            {"es": "Probada con Belka: captura NEF, vista en vivo, foco y autoenfoque remotos.",
-             "en": "Tested with Belka: NEF capture, live view, remote focus and autofocus."}
-          ]
-        }
-      }
+      ]
     },
     {
       "id": "canon",

@@ -29,7 +29,7 @@ from belka.core.session import Frame, Session, load_frame
 
 PREVIEW_SIDE = 2000
 # A crop this much smaller than the screen it fills is developed from the
-# raw's native half-size decode (3024 px on the D780) instead of the preview;
+# raw's native half-size decode (3024 px for 24 MP) instead of the preview;
 # a slightly tightened full frame is not worth four times the pixels.
 DETAIL_MARGIN = 1.5
 _tokens = itertools.count(1)

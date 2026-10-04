@@ -151,7 +151,7 @@ def test_darkfield_of_another_picture_is_not_used(library, dusty):
     assert np.array_equal(dust.dust_mask(dusty["bright"], other, 0.5), dust.dust_mask(dusty["bright"], None, 0.5))
 
 
-# What LibRaw's AHD demosaic makes of one hot photosite (measured on a D780
+# What LibRaw's AHD demosaic makes of one hot photosite (measured on a real
 # NEF): a red or blue one spreads over 3x3 pixels of its channel, a green one
 # into all three channels.
 HOT_RB = np.array([[0.25, 0.5, 0.25], [0.5, 1.0, 0.5], [0.25, 0.5, 0.25]], np.float32)

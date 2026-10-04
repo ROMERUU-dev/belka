@@ -46,7 +46,7 @@ right of the reading direction on screen; on its left, the film was turned
 over and the picture is mirrored. Every rule of the format must hold (start,
 stop and empty bits, parity), the instances along the strip vote on the
 film, and the numbered ones on the frame number. The capture shows a bar as
-denser than the base (checked on a Nikon D780 capture of Kodak film: bars
+denser than the base (checked on a real capture of Kodak film: bars
 about 0.45 D above the base), but the camera blurs light, not density, so
 bars are told apart half way in light.
 

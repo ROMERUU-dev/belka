@@ -80,7 +80,7 @@ def _toggle(name):
 # ---------------------------------------------------------------- libgphoto2 backend
 
 def test_gphoto_backend_maps_brand_specific_widgets():
-    backend, applied = _backend("Nikon DSC D780", {
+    backend, applied = _backend("Nikon DSC D850", {
         "iso": _radio("iso", "100", ["100", "200"]),
         "shutterspeed": _radio("shutterspeed", "1/30", ["1/30", "1/15"]),
         "f-number": _radio("f-number", "f/8", ["f/8"]),
@@ -96,15 +96,15 @@ def test_gphoto_backend_maps_brand_specific_widgets():
     assert applied == [("iso", "200"), ("manualfocusdrive", 40.0)]
 
 
-def test_d780_resolves_the_same_controls_as_before():
-    """The D780 is tested with the real camera: its control names must not move."""
+def test_nikon_dslr_resolves_the_same_controls_as_before():
+    """Checked against a real Nikon: its control names must not move."""
     names = ["iso", "autoiso", "isoauto", "shutterspeed", "shutterspeed2", "f-number", "exposurecompensation",
              "imagequality", "capturetarget", "whitebalance", "liveviewsize", "focusmode", "expprogram",
              "batterylevel", "manualfocusdrive", "autofocusdrive", "viewfinder"]
     widgets = {n: _radio(n, "x", ["x"]) for n in names}
     widgets["manualfocusdrive"] = _range("manualfocusdrive", -32767, 32767)
     widgets["autofocusdrive"] = _toggle("autofocusdrive")
-    backend, applied = _backend("Nikon DSC D780", widgets)
+    backend, applied = _backend("Nikon DSC D850", widgets)
     assert backend._names == {
         "iso": "iso", "iso_auto": "autoiso", "shutter": "shutterspeed2", "aperture": "f-number",
         "exposure_comp": "exposurecompensation", "quality": "imagequality", "target": "capturetarget",
@@ -217,7 +217,7 @@ def test_cameras_json_is_well_formed():
 
 
 @pytest.mark.parametrize("model, brand, name", [
-    ("Nikon DSC D780", "nikon", "Nikon réflex (D)"),
+    ("Nikon DSC D850", "nikon", "Nikon réflex (D)"),
     ("Nikon Z6_2", "nikon", "Nikon Z (sin espejo)"),
     ("Canon EOS R5", "canon", "Canon EOS R (sin espejo)"),
     ("Canon EOS Rebel T7i", "canon", "Canon EOS réflex"),
@@ -243,11 +243,22 @@ def test_series_and_model_refine_the_brand():
     assert not any("espejo" in n for n in z.notes)
     d70 = models.profile_for("Nikon DSC D70 (PTP mode)")
     assert "PTP" in d70.usb_mode and any("espejo" in n for n in d70.notes)
-    assert any("Probada" in n for n in models.profile_for("Nikon DSC D780").notes)
     sony = models.profile_for("Sony Alpha-A7 IV (PC Control)")
     assert sony.focus == models.FocusDrive(("manualfocus",), "range", "size")
     assert models.profile_for("Canon EOS RP").focus.kind == "choice"
     assert "PC Remote" in models.profile_for("Sony ZV-E10 (Control)").usb_mode
+
+
+def test_an_exact_model_adds_its_own_notes(monkeypatch):
+    """A brand's "models" entry refines its profile for that model only."""
+    import copy
+
+    catalog = copy.deepcopy(models._catalog())
+    nikon = next(b for b in catalog["brands"] if b["id"] == "nikon")
+    nikon["models"] = {"Nikon DSC D850": {"notes": [{"es": "Nota de este modelo.", "en": "This model's note."}]}}
+    monkeypatch.setattr(models, "_catalog", lambda: catalog)
+    assert "Nota de este modelo." in models.profile_for("Nikon DSC D850").notes
+    assert "Nota de este modelo." not in models.profile_for("Nikon DSC D750").notes
 
 
 def test_profile_text_follows_the_language():
@@ -263,8 +274,8 @@ def test_profile_text_follows_the_language():
 
 
 def test_libgphoto2_support_flags_come_from_the_static_list():
-    d780 = models.support("Nikon DSC D780")
-    assert d780.capture and d780.preview and d780.status == "production"
+    d850 = models.support("Nikon DSC D850")
+    assert d850.capture and d850.preview and d850.status == "production"
     m9 = models.support("Leica M9")
     assert m9.capture and not m9.preview
     assert models.support("Cámara inventada 3000") is None
@@ -348,7 +359,7 @@ def panel():
     p.deleteLater()
 
 
-NIKON = CameraInfo("Nikon DSC D780", "usb:001,005")
+NIKON = CameraInfo("Nikon DSC D850", "usb:001,005")
 SETTINGS = [
     CameraSetting("shutter", "shutterspeed2", "Velocidad", "choice", "1/30", ["1/60", "1/30", "1/15", "1/8"]),
     CameraSetting("quality", "imagequality", "Calidad", "choice", "NEF (Raw) + JPEG Fine (Star)",
@@ -371,12 +382,12 @@ def test_panel_says_when_no_camera_is_detected(panel):
 
 
 def test_panel_lists_cameras_with_their_support(panel):
-    twin = CameraInfo("Nikon DSC D780", "usb:001,009")
+    twin = CameraInfo("Nikon DSC D850", "usb:001,009")
     leica = CameraInfo("Leica M9", "usb:002,003")
     panel.set_cameras([NIKON, twin, leica], keep="Leica M9")
     assert not panel.no_camera_label.isVisibleTo(panel) and panel.camera_combo.isVisibleTo(panel)
     assert [panel.camera_combo.itemText(i) for i in range(3)] == [
-        "Nikon DSC D780 (usb:001,005)", "Nikon DSC D780 (usb:001,009)", "Leica M9"]
+        "Nikon DSC D850 (usb:001,005)", "Nikon DSC D850 (usb:001,009)", "Leica M9"]
     assert "Vista en vivo: no" in panel.support_label.text()
     assert "PTP" in panel.tips_label.text()
     panel.camera_combo.setCurrentIndex(0)
@@ -450,8 +461,8 @@ def test_compatible_cameras_dialog_filters_and_explains(panel):
     shown = dialog.visible_models()
     assert "Nikon Z6 III" in shown and all("Z6" in m for m in shown)
     assert f"{len(shown)} de {total}" in dialog.count_label.text()
-    dialog.search.setText("reflex d780")  # accents do not matter: the series is "Nikon réflex (D)"
-    assert dialog.visible_models() == ["Nikon DSC D780"]
+    dialog.search.setText("reflex d850")  # accents do not matter: the series is "Nikon réflex (D)"
+    assert dialog.visible_models() == ["Nikon DSC D850"]
     dialog.select_model("Sony Alpha-A7 IV (PC Control)")
     assert dialog.tree.currentItem().text(0) == "Sony Alpha-A7 IV (PC Control)"
     assert dialog.search.text() == ""
@@ -463,7 +474,7 @@ def test_compatible_cameras_button_opens_the_list_on_the_detected_model(panel):
     panel.set_cameras([NIKON])
     panel.compat_btn.click()
     dialog = panel._compat_dialog
-    assert dialog.isVisible() and dialog.tree.currentItem().text(0) == "Nikon DSC D780"
+    assert dialog.isVisible() and dialog.tree.currentItem().text(0) == "Nikon DSC D850"
     dialog.close()
 
 

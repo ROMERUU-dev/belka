@@ -177,7 +177,7 @@ def test_settings_json_round_trip():
 def test_real_world_scan_layout(library, camera_ev):
     """Bare light around the strip, holes, a dark surround with glare.
 
-    Regression for the first real D780 scans: with the light unclipped the
+    Regression for the first real scans: with the light unclipped the
     old analysis took the bare light for the film base and the surround for
     the densest highlight, and the inversion came out wrong.
     """
