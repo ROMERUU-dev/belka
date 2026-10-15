@@ -305,6 +305,183 @@ def _dilate(mask: np.ndarray, radius: int) -> np.ndarray:
     return out
 
 
+# 135 film, KS perforations: what the sprocket holes say about the strip.
+PERF_PITCH_MM = 4.75
+PERF_CENTRE_MM = 3.0  # film edge to the centre of a row of holes
+_PERF_ROW_SEPARATION = (5.2, 6.9)  # row centres apart, in pitches (29 mm / 4.75 mm = 6.1)
+_PERF_ALONG = (0.25, 0.65)  # a hole's size along the strip, in pitches (1.98 mm)
+_PERF_ACROSS = (0.3, 0.9)  # ...and across it (2.79 mm)
+
+
+@dataclass(frozen=True)
+class Perforations:
+    """Two rows of sprocket holes in a view, in its pixels.
+
+    ``along``/``across`` are image x/y for a strip lying left to right and y/x
+    for one running up and down (``vertical``). ``span`` is the stretch along
+    the strip between the outermost holes found: film there is in view and
+    not under a mask (paper or tape over the neighbouring frames hides their
+    holes too). ``rebate`` is the clean film between neighbouring holes, base
+    density and nothing else, where the base is best measured.
+    """
+
+    vertical: bool
+    pitch: float
+    rows: tuple[float, float]
+    inner: tuple[float, float]
+    span: tuple[float, float]
+    holes: np.ndarray = field(repr=False)
+    rebate: np.ndarray = field(repr=False)
+
+    @property
+    def px_per_mm(self) -> float:
+        return self.pitch / PERF_PITCH_MM
+
+    def strip(self, shape: tuple[int, int]) -> np.ndarray:
+        """The strip itself, film edge to film edge, inside ``span``."""
+        h, w = shape[:2]
+        out = np.zeros((h, w), dtype=bool)
+        margin = PERF_CENTRE_MM * self.px_per_mm
+        a0 = max(int(self.rows[0] - margin), 0)
+        a1 = int(self.rows[1] + margin) + 1
+        s0, s1 = max(int(self.span[0]), 0), int(self.span[1]) + 1
+        if self.vertical:
+            out[s0:s1, a0:a1] = True
+        else:
+            out[a0:a1, s0:s1] = True
+        return out
+
+
+def _hole_blobs(binary: np.ndarray) -> list[tuple[float, float, int, int, int, int]]:
+    """Compact blobs the size a hole can have: (cx, cy, x, y, w, h)."""
+    h, w = binary.shape
+    _n, _labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    x, y, bw, bh, area = (stats[1:, i] for i in range(5))
+    keep = ((area >= 0.0002 * h * w) & (area <= 0.02 * h * w) & (area >= 0.5 * bw * bh)
+            & (np.maximum(bw, bh) <= 2.5 * np.maximum(np.minimum(bw, bh), 1)))
+    idx = np.nonzero(keep)[0]
+    return [(float(centroids[i + 1][0]), float(centroids[i + 1][1]), int(x[i]), int(y[i]), int(bw[i]), int(bh[i]))
+            for i in idx]
+
+
+def _hole_rows(blobs: list, vertical: bool) -> list[dict]:
+    """Blobs lined up across the strip at a regular pitch along it."""
+    items = []
+    for cx, cy, x, y, bw, bh in blobs:
+        if vertical:
+            items.append((cx, cy, bw, bh, (x, y, bw, bh)))
+        else:
+            items.append((cy, cx, bh, bw, (x, y, bw, bh)))
+    items.sort(key=lambda t: t[0])
+    groups: list[list] = []
+    for item in items:
+        if groups and abs(item[0] - float(np.median([g[0] for g in groups[-1]]))) < 0.6 * max(item[2], 4):
+            groups[-1].append(item)
+        else:
+            groups.append([item])
+    rows = []
+    for group in groups:
+        if len(group) < 3:
+            continue
+        group.sort(key=lambda t: t[1])
+        steps = np.diff([t[1] for t in group])
+        if not len(steps) or steps.min() <= 0:
+            continue
+        pitch = float(np.median(steps[steps <= 1.5 * steps.min()]))
+        ratio = steps / pitch
+        if np.mean(np.abs(ratio - np.round(ratio)) < 0.18) < 0.7:
+            continue
+        rows.append({"across": float(np.median([t[0] for t in group])), "pitch": pitch, "holes": group,
+                     "size_across": float(np.median([t[2] for t in group])),
+                     "size_along": float(np.median([t[3] for t in group]))})
+    return rows
+
+
+def _best_row_pair(blobs: list) -> tuple | None:
+    best = None
+    for vertical in (False, True):
+        rows = _hole_rows(blobs, vertical)
+        for i, a in enumerate(rows):
+            for b in rows[i + 1:]:
+                if abs(a["pitch"] / b["pitch"] - 1.0) > 0.15:
+                    continue
+                pitch = (a["pitch"] + b["pitch"]) / 2
+                if not _PERF_ROW_SEPARATION[0] <= abs(a["across"] - b["across"]) / pitch <= _PERF_ROW_SEPARATION[1]:
+                    continue
+                if not all(_PERF_ALONG[0] <= r["size_along"] / pitch <= _PERF_ALONG[1]
+                           and _PERF_ACROSS[0] <= r["size_across"] / pitch <= _PERF_ACROSS[1] for r in (a, b)):
+                    continue
+                score = len(a["holes"]) + len(b["holes"])
+                if best is None or score > best[0]:
+                    best = (score, vertical, pitch, *sorted((a, b), key=lambda r: r["across"]))
+    return best
+
+
+def find_perforations(img: np.ndarray) -> Perforations | None:
+    """The two rows of sprocket holes of a 135 strip, when both are in view.
+
+    A hole is bare light, several times brighter than the film around it, but
+    not necessarily the brightest thing in view: paper or tape masking the
+    neighbouring frames can be as bright, and the screen's light falls off
+    away from the lit zone. So holes are looked for as small bright blobs
+    against their own surroundings (a top-hat in log light, at a few sizes,
+    as the magnification is unknown), and only two parallel rows of them at
+    the pitch and spacing of 135 film count. None otherwise (another format,
+    a strip with one edge out of view, no holes lit).
+    """
+    lum = img.mean(axis=-1) if img.ndim == 3 else img
+    h, w = lum.shape
+    if min(h, w) < 64:
+        return None
+    log = np.log(np.maximum(lum, EPS)).astype(np.float32)
+    best, side = None, min(h, w)
+    # Most likely first, and done once both rows show five holes or more.
+    for frac in (0.14, 0.1, 0.07, 0.05):
+        k = max(5, int(frac * side)) | 1
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (k, k))
+        top = log - cv2.morphologyEx(log, cv2.MORPH_OPEN, kernel)
+        for t in np.percentile(top[::2, ::2], (95, 93, 97, 91, 98, 99)):
+            found = _best_row_pair(_hole_blobs((top > max(float(t), 0.25)).astype(np.uint8)))
+            if found is not None and (best is None or found[0] > best[0]):
+                best = found
+            if best is not None and best[0] >= 10:
+                break
+        if best is not None and best[0] >= 10:
+            break
+    if best is None:
+        return None
+    _score, vertical, pitch, first, second = best
+    holes = np.zeros((h, w), dtype=bool)
+    rebate = np.zeros((h, w), dtype=bool)
+    ends = []
+    for row in (first, second):
+        boxes = sorted((t[4] for t in row["holes"]), key=lambda b: b[1] if vertical else b[0])
+        for x, y, bw, bh in boxes:
+            holes[y:y + bh, x:x + bw] = True
+        # Between two neighbouring holes: plain base, away from their blurred edges.
+        half = 0.3 * row["size_across"]
+        a0, a1 = int(round(row["across"] - half)), int(round(row["across"] + half)) + 1
+        for (x0, y0, w0, h0), (x1, y1, _w1, _h1) in zip(boxes, boxes[1:]):
+            lo, hi = (y0 + h0, y1) if vertical else (x0 + w0, x1)
+            if not 0.6 * pitch <= hi - lo + row["size_along"] <= 1.4 * pitch:
+                continue
+            m = int(np.ceil(0.25 * (hi - lo)))
+            if hi - lo - 2 * m < 1:
+                continue
+            if vertical:
+                rebate[lo + m:hi - m, max(a0, 0):a1] = True
+            else:
+                rebate[max(a0, 0):a1, lo + m:hi - m] = True
+        first_box, last_box = boxes[0], boxes[-1]
+        ends.append((first_box[1] if vertical else first_box[0],
+                     (last_box[1] + last_box[3]) if vertical else (last_box[0] + last_box[2])))
+    holes = _dilate(holes, 1)
+    span = (float(min(e[0] for e in ends)), float(max(e[1] for e in ends)))
+    inner = (first["across"] + first["size_across"] / 2, second["across"] - second["size_across"] / 2)
+    return Perforations(vertical=vertical, pitch=pitch, rows=(first["across"], second["across"]), inner=inner,
+                        span=span, holes=holes, rebate=rebate & ~holes)
+
+
 def light_masks(img: np.ndarray, profile: FilmProfile | None = None) -> dict[str, np.ndarray]:
     """Classify an (H, W, C) linear image into lit/unlit and bare light vs film.
 
@@ -348,11 +525,19 @@ def light_masks(img: np.ndarray, profile: FilmProfile | None = None) -> dict[str
     light2d = _dilate(light.reshape(h, w), EDGE_PX)
     unlit2d = _dilate(~lit.reshape(h, w), EDGE_PX)
     film2d = ~light2d & ~unlit2d
-    # The film that matters lies on the light: inside the box spanned by the
-    # bare light around the strip and through its holes. Outside it there is
-    # only glare from the panel, dim enough to pass for dense film.
     bare = light.reshape(h, w)
-    if np.count_nonzero(bare) > 0.002 * h * w:
+    perfs = find_perforations(img)
+    if perfs is not None:
+        # The holes are bare light even when nothing clips, and the film is the
+        # strip between its edges, where it is not under a mask: paper over the
+        # neighbouring frames can be as bright as the light itself.
+        bare = bare | perfs.holes
+        light2d = light2d | _dilate(perfs.holes, EDGE_PX)
+        film2d = ~light2d & ~unlit2d & perfs.strip((h, w))
+    elif np.count_nonzero(bare) > 0.002 * h * w:
+        # The film that matters lies on the light: inside the box spanned by the
+        # bare light around the strip and through its holes. Outside it there is
+        # only glare from the panel, dim enough to pass for dense film.
         ys, xs = np.nonzero(bare)
         y0, y1 = np.percentile(ys, [0.5, 99.5]).astype(int)
         x0, x1 = np.percentile(xs, [0.5, 99.5]).astype(int)
@@ -360,7 +545,7 @@ def light_masks(img: np.ndarray, profile: FilmProfile | None = None) -> dict[str
             inside = np.zeros((h, w), dtype=bool)
             inside[y0:y1 + 1, x0:x1 + 1] = True
             film2d &= inside
-    return {"light": light2d, "unlit": unlit2d, "film": film2d, "bare": bare,
+    return {"light": light2d, "unlit": unlit2d, "film": film2d, "bare": bare, "perforations": perfs,
             "lit_fraction": float(np.mean(lit)),
             "field": illumination_field(img, bare & ~clipped.reshape(h, w))}
 
@@ -502,10 +687,12 @@ def detect_frame(img: np.ndarray, base: np.ndarray, masks: dict) -> tuple[float,
     exposed = film & (dens > 0.06) & (dens < MAX_FILM_DENSITY)
     near_base = film & (dens <= 0.08)
     bare = masks.get("bare", np.zeros_like(film))
+    perfs = masks["perforations"] if "perforations" in masks else find_perforations(img)
     ys, xs = np.nonzero(film)
     fy0, fy1 = (int(v) for v in np.percentile(ys, [1, 99]))
     fx0, fx1 = (int(v) for v in np.percentile(xs, [1, 99]))
-    transposed = (fy1 - fy0) > (fx1 - fx0)  # strip running vertically
+    # The strip runs up and down: the holes say so, or the film's shape.
+    transposed = perfs.vertical if perfs is not None else (fy1 - fy0) > (fx1 - fx0)
     if transposed:
         film, exposed, near_base, bare = film.T, exposed.T, near_base.T, bare.T
         fy0, fy1, fx0, fx1 = fx0, fx1, fy0, fy1
@@ -513,16 +700,19 @@ def detect_frame(img: np.ndarray, base: np.ndarray, masks: dict) -> tuple[float,
 
     # Across the strip: between the sprocket-hole bands when both are visible.
     band = None
-    row_light = bare[:, fx0:fx1 + 1].mean(axis=1)
-    hole_rows = np.nonzero(row_light > 0.08)[0]
-    hole_rows = hole_rows[(hole_rows >= fy0 - 3) & (hole_rows <= fy1 + 3)]
-    mid = (fy0 + fy1) / 2
-    upper, lower = hole_rows[hole_rows < mid], hole_rows[hole_rows > mid]
-    if len(upper) and len(lower):
-        a, b = int(upper.max()) + 1, int(lower.min()) - 1
-        if b - a > 0.2 * H:
-            rebate = int(round((b - a) * 0.03))  # the thin rebate (a slight tilt eats the rest)
-            band = (a + rebate, b - rebate)
+    if perfs is not None:
+        a, b = int(np.ceil(perfs.inner[0])), int(perfs.inner[1])
+        upper = lower = np.array([a])  # framed by the holes
+    else:
+        row_light = bare[:, fx0:fx1 + 1].mean(axis=1)
+        hole_rows = np.nonzero(row_light > 0.08)[0]
+        hole_rows = hole_rows[(hole_rows >= fy0 - 3) & (hole_rows <= fy1 + 3)]
+        mid = (fy0 + fy1) / 2
+        upper, lower = hole_rows[hole_rows < mid], hole_rows[hole_rows > mid]
+        a, b = (int(upper.max()) + 1, int(lower.min()) - 1) if len(upper) and len(lower) else (0, 0)
+    if len(upper) and len(lower) and b - a > 0.2 * H:
+        rebate = int(round((b - a) * 0.03))  # the thin rebate (a slight tilt eats the rest)
+        band = (a + rebate, b - rebate)
     if band is None:
         film_rows = film.mean(axis=1)
         rows = np.nonzero(film_rows > 0.5 * film_rows.max())[0]
@@ -537,6 +727,10 @@ def detect_frame(img: np.ndarray, base: np.ndarray, masks: dict) -> tuple[float,
     on_film = film[rows].mean(axis=0)
     gapness = _smooth(near_base[rows].mean(axis=0), 1)
     picture = (gapness < 0.85) & (on_film > 0.5) & (_smooth(exposed[rows].mean(axis=0), 1) > 0.05)
+    if perfs is not None:
+        # Only where the holes show the film is in view and not under a mask.
+        along = np.arange(W)
+        picture &= (along >= perfs.span[0]) & (along <= perfs.span[1])
     run_x = _longest_run(picture.astype(float), 0.5, bridge=1)
     if run_x is None:
         return None
@@ -617,9 +811,28 @@ def analyze(img: np.ndarray, settings: DevelopSettings, profile: FilmProfile) ->
     partial = any_c & ~_dilate(all_c, EDGE_PX) & ~masks["unlit"]
     lit_px = max(float(np.count_nonzero(~masks["unlit"])), 1.0)
     clipped = max(clipped, float(np.count_nonzero(partial)) / lit_px)
-    extra = {"frame": frame, "base_level": float(np.max(base)), "clipped": clipped,
-             "no_light": masks["lit_fraction"] < 0.005 or float(np.percentile(full, 99.9)) < 0.01}
+    # The exposure advice is about this shot: a base fixed for the roll may
+    # have been measured on another one, at another exposure.
+    measured = base if base_is_auto else estimate_base(full, profile, masks)
+    extra = {"frame": frame, "base_level": float(np.max(measured)), "clipped": clipped,
+             "no_light": masks["lit_fraction"] < 0.005 or float(np.percentile(full, 99.9)) < 0.01,
+             "holes_unlit": _holes_unlit(full, masks)}
     return Analysis(base=base, base_is_auto=base_is_auto, lo=lo, hi=hi, channels=region.shape[-1], extra=extra)
+
+
+def _holes_unlit(img: np.ndarray, masks: dict) -> bool:
+    """The sprocket holes are darker than the film: the lit zone does not reach
+    them. Bare light through a hole is the brightest thing on a lit strip, so
+    then the rebate is unlit too and the base cannot be measured."""
+    perfs = masks.get("perforations")
+    film = masks["film"]
+    if perfs is None or np.count_nonzero(film) < 64:
+        return False
+    lum = img.mean(axis=-1)
+    core = perfs.holes & ~_dilate(~perfs.holes, 1)
+    if np.count_nonzero(core) < 16:
+        return False
+    return bool(np.median(lum[core]) < np.percentile(lum[film], 99))
 
 
 def exposure_advice(analysis: Analysis, target: float = 0.75) -> float:

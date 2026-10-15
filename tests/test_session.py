@@ -142,3 +142,38 @@ def test_linear_tiff_round_trip(tmp_path, library):
     assert np.allclose(back.camera_matrix, np.eye(3))
     assert np.abs(back.rgb - raw).max() < 1 / 30000
 
+
+
+def test_new_captures_measure_their_own_base_unless_it_is_locked(tmp_path):
+    """A base measured on one shot is wrong for the next one, at another exposure."""
+    s = Session.create(tmp_path, "r")
+    raw = s.raw_dir / "a.tif"
+    save_linear_tiff(raw, np.full((20, 30, 3), 0.5, np.float32))
+    s.roll_settings = DevelopSettings(base=(0.03, 0.04, 0.02), exposure=0.5).to_json()
+    fresh = s.add_frame([raw])
+    assert s.settings_for(fresh).base is None and s.settings_for(fresh).exposure == 0.5  # the look, not the base
+    s.lock_base = True
+    assert s.settings_for(fresh).base == (0.03, 0.04, 0.02)
+
+
+def test_a_stray_roll_base_is_forgotten_on_load(tmp_path):
+    """Rolls saved before 0.4.1 kept an unlocked base in their defaults and
+    copied it into every capture; loading puts those frames back on auto."""
+    s = Session.create(tmp_path, "r")
+    raw = s.raw_dir / "a.tif"
+    save_linear_tiff(raw, np.full((20, 30, 3), 0.5, np.float32))
+    stray = (0.03, 0.04, 0.02)
+    s.roll_settings = DevelopSettings(base=stray).to_json()
+    inherited, measured = s.add_frame([raw]), s.add_frame([raw])
+    inherited.settings = DevelopSettings(base=stray, exposure=0.3).to_json()
+    measured.settings = DevelopSettings(base=(0.4, 0.5, 0.3)).to_json()
+    s.save()
+    again = Session.load(s.path)
+    assert again.roll_defaults().base is None
+    assert again.settings_for(again.frame(inherited.id)).base is None
+    assert again.settings_for(again.frame(inherited.id)).exposure == 0.3
+    assert again.settings_for(again.frame(measured.id)).base == (0.4, 0.5, 0.3)
+    # Locked, the roll's base is meant for every frame and stays.
+    s.lock_base = True
+    s.save()
+    assert Session.load(s.path).roll_defaults().base == stray

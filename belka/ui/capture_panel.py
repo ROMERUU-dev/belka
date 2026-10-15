@@ -42,7 +42,7 @@ from PySide6.QtWidgets import (
 from belka.camera import models
 from belka.camera.base import CameraInfo, CameraSetting
 from belka.i18n import _
-from belka.light.geometry import Adapter, LightSettings
+from belka.light.geometry import Adapter, LightSettings, roomier_rect
 from belka.ui.widgets import ColorSwatch, LabeledSlider, WheelGuard
 
 LIGHT_MODES = (
@@ -68,6 +68,7 @@ QLabel#Hint {{ color: {DIM}; font-size: 11px; }}
 QLabel#NoCamera {{ color: #d6d6d6; font-weight: 600; }}
 QLabel#Support {{ color: {DIM}; font-size: 11px; }}
 QLabel#Support[warn="true"] {{ color: {WARN}; }}
+QLabel#LightWarn {{ color: {WARN}; font-size: 11px; }}
 QPushButton#Link {{ background: transparent; border: none; padding: 0; color: #a8a8a8; text-align: left;
                     font-size: 11px; }}
 QPushButton#Link:hover {{ color: #ececec; text-decoration: underline; }}
@@ -273,6 +274,15 @@ class CapturePanel(QScrollArea):
         for a in adapters:
             self.adapter_combo.addItem(_(a.name), a.id)
         lf.addRow(_("Formato"), self.adapter_combo)
+        self.light_warn = QLabel()
+        self.light_warn.setObjectName("LightWarn")
+        self.light_warn.setWordWrap(True)
+        self.light_warn.hide()
+        lf.addRow(self.light_warn)
+        self.light_fix = QPushButton()
+        self.light_fix.setToolTip(_("Agranda la zona iluminada al tamaño del formato, en el mismo centro"))
+        self.light_fix.hide()
+        lf.addRow(self.light_fix)
         self.mode_combo = _ElidedCombo()
         for key, label in LIGHT_MODES:
             self.mode_combo.addItem(_(label), key)
@@ -377,6 +387,7 @@ class CapturePanel(QScrollArea):
         self.scale_btn.clicked.connect(self.scaleRequested.emit)
         self.screen_combo.currentIndexChanged.connect(self._on_light_ui)
         self.adapter_combo.currentIndexChanged.connect(self._on_adapter)
+        self.light_fix.clicked.connect(self._on_light_fix)
         self.mode_combo.currentIndexChanged.connect(self._on_light_ui)
         self.brightness.valueChanged.connect(lambda _v: self._on_light_ui())
         self.fullscreen_check.toggled.connect(lambda _v: self._on_light_ui())
@@ -410,7 +421,30 @@ class CapturePanel(QScrollArea):
     def _on_adapter(self, _i: int) -> None:
         self.light.adapter = self.adapter_combo.currentData()
         self.light.rect_mm = None
+        self._refresh_light_size()
         self.lightChanged.emit()
+
+    def _adapter(self) -> Adapter | None:
+        return next((a for a in self.adapters if a.id == self.light.adapter), None)
+
+    def _refresh_light_size(self) -> None:
+        """Warn when the lit zone, resized by hand, no longer reaches the sprocket holes."""
+        rect = roomier_rect(self.light, self._adapter())
+        if rect is not None:
+            _x, _y, w, h = self.light.rect_mm
+            self.light_warn.setText(_(
+                "La zona iluminada ({w:.0f}×{h:.0f} mm) es más chica que la película: las perforaciones y el borde "
+                "quedan a oscuras, la base no se puede medir y la inversión sale mal.").format(w=w, h=h))
+            self.light_fix.setText(_("Usar {w:.0f}×{h:.0f} mm").format(w=rect[2], h=rect[3]))
+        self.light_warn.setVisible(rect is not None)
+        self.light_fix.setVisible(rect is not None)
+
+    def _on_light_fix(self) -> None:
+        rect = roomier_rect(self.light, self._adapter())
+        if rect is not None:
+            self.light.rect_mm = rect
+            self._refresh_light_size()
+            self.lightChanged.emit()
 
     def _on_light_ui(self, *_args) -> None:
         screen = self.screen_combo.currentData()
@@ -451,6 +485,7 @@ class CapturePanel(QScrollArea):
         for w in widgets:
             w.blockSignals(False)
         self.show_tint(light.tint)
+        self._refresh_light_size()
 
     def darkfield_enabled(self) -> bool:
         return self.darkfield_check.isChecked()

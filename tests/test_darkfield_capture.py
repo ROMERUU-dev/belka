@@ -282,3 +282,27 @@ def test_closest_shutter_matches_in_stops():
     assert closest_shutter(speeds, 1 / 30 * 8) == "1/4"
     assert closest_shutter(speeds, 20.0) == "1"
     assert closest_shutter(["Bulb", "Time"], 1.0) is None
+
+
+def test_a_lit_zone_too_small_for_the_film_is_flagged_and_fixed(panel):
+    """Resized by hand to the picture, the light leaves the holes and the base dark."""
+    from belka.light.geometry import roomier_rect
+
+    changed = []
+    panel.lightChanged.connect(lambda: changed.append(panel.light.rect_mm))
+    panel.load_light(panel.light)
+    assert panel.light_warn.isHidden()
+    panel.light.rect_mm = (210.9, 38.33, 30.83, 23.07)  # as it was found on the copy stand
+    panel.load_light(panel.light)
+    assert not panel.light_warn.isHidden() and "31×23 mm" in panel.light_warn.text()
+    assert panel.light_fix.text() == "Usar 56×40 mm"
+    panel.light_fix.click()
+    x, y, w, h = panel.light.rect_mm
+    assert (w, h) == (56.0, 40.0)
+    assert (x + w / 2, y + h / 2) == pytest.approx((210.9 + 30.83 / 2, 38.33 + 23.07 / 2), abs=0.01)  # same centre
+    assert changed and panel.light_warn.isHidden()
+    # A portrait zone grows as a portrait; one close to the format's size is fine.
+    panel.light.rect_mm = (0.0, 0.0, 20.0, 30.0)
+    assert roomier_rect(panel.light, panel._adapter())[2:] == (40.0, 56.0)
+    panel.light.rect_mm = (0.0, 0.0, 50.0, 38.0)
+    assert roomier_rect(panel.light, panel._adapter()) is None

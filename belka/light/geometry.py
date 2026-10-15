@@ -47,6 +47,24 @@ def load_adapters() -> list[Adapter]:
     return result
 
 
+# A lit zone resized by hand to less than this share of the format's light
+# leaves the sprocket holes and the rebate dark: no base to measure.
+MIN_LIGHT_SHARE = 0.85
+
+
+def roomier_rect(light: "LightSettings", adapter: Adapter | None) -> tuple[float, float, float, float] | None:
+    """The format's lit size around the same centre, when the zone set by hand
+    is too small for the film; None when it is fine (or not set by hand)."""
+    if light.rect_mm is None or not light.fullscreen or adapter is None or adapter.light_mm is None:
+        return None
+    x, y, w, h = light.rect_mm
+    long_side, short_side = max(adapter.light_mm), min(adapter.light_mm)
+    big_w, big_h = (long_side, short_side) if w >= h else (short_side, long_side)
+    if w >= MIN_LIGHT_SHARE * big_w and h >= MIN_LIGHT_SHARE * big_h:
+        return None
+    return (round(x + (w - big_w) / 2, 2), round(y + (h - big_h) / 2, 2), float(big_w), float(big_h))
+
+
 def display_value(linear: float) -> float:
     return max(0.0, min(1.0, linear)) ** (1.0 / SCREEN_GAMMA)
 

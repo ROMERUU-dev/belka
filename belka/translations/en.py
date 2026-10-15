@@ -625,6 +625,14 @@ STRINGS: dict[str, str] = {
     "Genérico diapositiva E-6": "Generic E-6 slide",
     "Cualquier película reversible (positivo).": "Any reversal (positive) film.",
     "Muy saturada y contrastada.": "Very saturated and contrasty.",
+    # 0.4.1: lighting that does not reach the holes
+    "⚠ La luz no llega a las perforaciones: el borde de la película queda a oscuras, la base no se puede medir y la inversión sale mal. Agranda la zona iluminada (Captura → Fuente de luz).":
+        "⚠ The light does not reach the sprocket holes: the film edge is left dark, the base cannot be measured and the inversion goes wrong. Make the lit zone larger (Capture → Light source).",
+    "Agranda la zona iluminada al tamaño del formato, en el mismo centro":
+        "Makes the lit zone the format's size, around the same centre",
+    "La zona iluminada ({w:.0f}×{h:.0f} mm) es más chica que la película: las perforaciones y el borde quedan a oscuras, la base no se puede medir y la inversión sale mal.":
+        "The lit zone ({w:.0f}×{h:.0f} mm) is smaller than the film: the sprocket holes and the edge are left dark, the base cannot be measured and the inversion goes wrong.",
+    "Usar {w:.0f}×{h:.0f} mm": "Use {w:.0f}×{h:.0f} mm",
 }
 
 HELP_HTML = """

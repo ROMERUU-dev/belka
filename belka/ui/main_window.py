@@ -1219,6 +1219,9 @@ class MainWindow(QMainWindow):
         analysis = result.analysis
         if analysis is not None and analysis.extra.get("no_light"):
             note = _("⚠ No se ve luz en esta foto: ¿estaba encendido el panel de luz?")
+        elif analysis is not None and analysis.extra.get("holes_unlit"):
+            note = _("⚠ La luz no llega a las perforaciones: el borde de la película queda a oscuras, la base no "
+                     "se puede medir y la inversión sale mal. Agranda la zona iluminada (Captura → Fuente de luz).")
         elif analysis is not None and result.meta.get("source") == "raw" and analysis.channels == 3:
             stops = pl.exposure_advice(analysis)
             level = analysis.extra.get("base_level", 0.0)
@@ -1469,6 +1472,9 @@ class MainWindow(QMainWindow):
                 self.session.roll_settings = self.session.roll_defaults().copy(base=base).to_json()
                 self.develop_panel.apply_external(base=base)
             self._message(_("La base de este fotograma se usará en todo el rollo."))
+        else:
+            # New captures measure their own base again.
+            self.session.roll_settings = self.session.roll_defaults().copy(base=None).to_json()
         self.session.save()
         for frame in self.session.frames:
             self._queue_thumbnail(frame)
@@ -2291,6 +2297,7 @@ class MainWindow(QMainWindow):
                 self.panel.set_adapter(self._adapter())
             if not self.flow.busy:  # mid-capture the panel shows the step's colour
                 self.panel.set_display_color(self.light.display_rgb())
+            self.panel.update()  # the lit zone may have been resized from here
             if self.panel.isVisible():
                 target = self._screen_by_name(self.light.screen)
                 if self.panel.screen() != target or self.panel.isFullScreen() != self.light.fullscreen:

@@ -162,7 +162,22 @@ class Session:
         )
         for folder in (session.raw_dir, session.flat_dir, session.export_dir):
             folder.mkdir(parents=True, exist_ok=True)
+        session._forget_stray_base()
         return session
+
+    def _forget_stray_base(self) -> None:
+        """A base kept in the roll's defaults without the lock (unlocking used to
+        leave it there) was copied into every new capture, measured on another
+        shot at another exposure: the inversion and the frame detection both went
+        wrong. Such frames go back to the automatic base; a base measured on a
+        frame itself differs from the roll's and stays."""
+        stray = self.roll_settings.get("base")
+        if self.lock_base or stray is None:
+            return
+        self.roll_settings = {**self.roll_settings, "base": None}
+        for frame in self.frames:
+            if frame.settings and frame.settings.get("base") == stray:
+                frame.settings = {**frame.settings, "base": None}
 
     def save(self) -> None:
         data = {
@@ -275,7 +290,12 @@ class Session:
 
     def settings_for(self, frame: Frame) -> DevelopSettings:
         roll = self.roll_defaults()
-        settings = DevelopSettings.from_json(frame.settings) if frame.settings else roll.copy()
+        if frame.settings:
+            settings = DevelopSettings.from_json(frame.settings)
+        else:
+            # A new capture takes the roll's look; its base only when the base is
+            # locked for the roll, as one measured on another shot would be wrong.
+            settings = roll.copy(base=roll.base if self.lock_base else None)
         if self.lock_base and roll.base is not None:
             settings.base = roll.base
         return settings
