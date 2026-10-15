@@ -7,7 +7,7 @@ preajuste «Portanegativos Belka 35» del panel de luz (zona iluminada de 52 × 
 | | Forma | Difusor |
 |---|---|---|
 | [v1](portanegativos-35/) | Compacto: base, tensor, portanegativos y tapa | Se tensa entre la base y el tensor; para cambiarlo se levanta todo. |
-| [v2 (retro)](portanegativos-35-v2/) | En X, con brazos que se curvan hacia arriba y capucha escalonada | Va en un cajón que entra por un riel lateral. |
+| [v2 (retro)](portanegativos-35-v2/) | En X, con brazos y canal que se curvan hacia arriba (la tira no se desliza) y capucha escalonada | Va en un cajón que entra por un riel lateral. |
 
 Cada carpeta trae el script paramétrico de FreeCAD, los STL listos para imprimir, el archivo `.FCStd` y una guía de
 impresión y armado.

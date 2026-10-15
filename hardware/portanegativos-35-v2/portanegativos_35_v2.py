@@ -50,8 +50,13 @@ ARM_INNER = 21.0  # los brazos dejan libre el paso de la tira (|y| < ARM_INNER)
 ARM_ROOT_W, ARM_TIP_W = 16.0, 30.0  # el brazo se abre hacia la punta, como una llave
 ARM_TIP_R = 7.0
 ARM_BITE = (47.0, 9.0)  # mordida cóncava en el costado de cada brazo, junto al bloque: x del centro, radio
-ARM_RISE = 11.0  # la punta del brazo queda tanto más arriba que el bloque central
+ARM_RISE = 16.0  # la punta del brazo queda tanto más arriba que el bloque central
 DECK_W = 2 * ARM_INNER + 2.0  # entre los brazos, la tira corre sobre una cubierta
+# El canal de la tira es plano bajo la capucha y la ventana, y de ahí sube en curva hacia
+# las puntas: la tira, curvada, ya no se desliza sola. Los brazos la guían por los lados.
+FLAT_HALF = ARM_ROOT_X
+FILM_RISE = 10.0
+MIN_BEND_R = 60.0  # radio mínimo de la curva para no marcar la película
 
 # ------------------------------------------------------------------ base y cajón
 FLOOR_T = 2.0  # pantalla → cajón
@@ -176,9 +181,23 @@ def frustum(w0, d0, w1, d1, z0, z1):
     return Part.makeLoft([rect(w0, d0, z0), rect(w1, d1, z1)], True)
 
 
-def mouth(x0, x1, w0, w1, z, h):
-    """Corte que ensancha el canal de w0 (en x0) a w1 (en x1): la boca de entrada."""
+def floor_z(x):
+    """El piso del canal: plano en el centro, sube en curva hasta las puntas."""
+    t = min(max((abs(x) - FLAT_HALF) / (ARM_TIP_X - FLAT_HALF), 0.0), 1.0)
+    return FILM_Z + FILM_RISE * t * t
+
+
+def xz_band(z_low, z_high, width, x0=-(ARM_TIP_X + 2), x1=ARM_TIP_X + 2, n=160):
+    """Sólido de ancho ``width`` (centrado en Y) entre dos curvas z(x): para lo que sigue la curva."""
+    xs = [x0 + (x1 - x0) * i / n for i in range(n + 1)]
+    pts = [V(x, -width / 2, z_high(x)) for x in xs] + [V(x, -width / 2, z_low(x)) for x in reversed(xs)]
+    return Part.Face(Part.makePolygon(pts + [pts[0]])).extrude(V(0, width, 0))
+
+
+def mouth(x0, x1, w0, w1, h):
+    """Corte que ensancha el canal de w0 (en x0) a w1 (en x1), siguiendo la curva: la boca de entrada."""
     def rect(x, w):
+        z = floor_z(x)
         pts = [V(x, -w / 2, z), V(x, w / 2, z), V(x, w / 2, z + h), V(x, -w / 2, z + h)]
         return Part.makePolygon(pts + [pts[0]])
     return Part.makeLoft([rect(x0, w0), rect(x1, w1)], True)
@@ -226,14 +245,14 @@ def make_hoop():
 def make_body():
     tall = HOLDER_TOP + ARM_RISE + 2 - HOLDER_Z
     arms = fuse_all(mirrored4(arm_plan(tall, HOLDER_Z))).cut(smile_cutter())
-    deck = centred_box(2 * ARM_TIP_X, DECK_W, HOLDER_TOP - HOLDER_Z, HOLDER_Z)
+    deck = xz_band(lambda x: HOLDER_Z, lambda x: floor_z(x) + CHANNEL_DEPTH, DECK_W, -ARM_TIP_X, ARM_TIP_X)
     centre = rounded_box(*CENTRE, HOLDER_TOP - HOLDER_Z, OUTLINE_R, HOLDER_Z)
     body = fuse_all([centre, deck, arms])
-    length = 2 * ARM_TIP_X + 2
-    body = body.cut(centred_box(length, CHANNEL_W, CHANNEL_DEPTH, FILM_Z))
+    # Todo lo que quede sobre el piso del canal, a lo ancho de la tira.
+    body = body.cut(xz_band(floor_z, lambda x: floor_z(x) + ARM_RISE + 10, CHANNEL_W))
     for sx in (-1, 1):
         body = body.cut(mouth(sx * (ARM_TIP_X - LEAD_IN[0]), sx * (ARM_TIP_X + 0.5), CHANNEL_W, LEAD_IN[1],
-                              FILM_Z, CHANNEL_DEPTH))
+                              ARM_RISE + 10))
     body = body.cut(frustum(WIN_ALONG + 2 * TUNNEL_FLARE, WIN_ACROSS + 2 * TUNNEL_FLARE, WIN_ALONG, WIN_ACROSS,
                             HOLDER_Z, FILM_Z))
     body = body.cut(centred_box(WIN_ALONG, WIN_ACROSS, CHANNEL_DEPTH, FILM_Z))
@@ -266,6 +285,10 @@ def check(parts):
     assert PAPER[0] > ring_out[0] + 6 and PAPER[1] > ring_out[1] + 6, "la hoja debe pasar el aro"
     assert PAPER[0] <= HOOP_OUT[0] and PAPER[1] <= HOOP_OUT[1]
     assert CENTRE[0] / 2 - CAP_INSET < ARM_ROOT_X, "la capucha no debe pisar los brazos"
+    assert FLAT_HALF >= CENTRE[0] / 2 - CAP_INSET and FLAT_HALF >= WIN_ALONG / 2, "la tira debe ir plana en la ventana"
+    bend_r = (ARM_TIP_X - FLAT_HALF) ** 2 / (2 * FILM_RISE)  # radio de la parábola en su vértice
+    assert bend_r >= MIN_BEND_R, f"la curva del canal es muy cerrada ({bend_r:.0f} mm)"
+    assert ARM_RISE > FILM_RISE + 2, "los brazos deben quedar por encima de la tira para guiarla"
     pairs = [("base/cajón", base, tray), ("base/aro", base, hoop), ("cajón/aro", tray, hoop),
              ("base/cuerpo", base, body), ("cajón/cuerpo", tray, body), ("aro/cuerpo", hoop, body),
              ("cuerpo/capucha", body, cap)]
@@ -277,9 +300,13 @@ def check(parts):
         moved = tray.copy()
         moved.translate(V(0, dy, 0))
         assert moved.common(base).Volume < 1e-3 and moved.common(body).Volume < 1e-3, "el cajón no sale"
-    # La tira corre de punta a punta: nada sobre el canal salvo la capucha, en el centro.
-    path = centred_box(2 * ARM_TIP_X + 4, CHANNEL_W - 0.01, 6.0, FILM_Z)
-    assert body.common(path).Volume < 1e-3, "los brazos tapan el paso de la tira"
+    # La tira corre de punta a punta por la curva: nada sobre el piso del canal.
+    path = xz_band(lambda x: floor_z(x) + 0.001, lambda x: floor_z(x) + 3.0, CHANNEL_W - 0.01)
+    assert body.common(path).Volume < 1e-3, "algo tapa el paso de la tira"
+    # ...y apoyada: el piso está ahí donde la curva lo pide (cerca de las puntas, a la mitad de la subida).
+    x_mid = (FLAT_HALF + ARM_TIP_X) / 2
+    probe = centred_box(2.0, 10.0, 0.6, floor_z(x_mid - 1.0) - 0.65, x=x_mid)  # bajo el punto más bajo del tramo
+    assert body.common(probe).Volume > 0.99 * probe.Volume, "el canal no sigue la curva"
     # Los brazos suben en curva: la punta está ARM_RISE más alta que la raíz.
     tip = body.common(centred_box(4, 4, 40, 0, x=ARM_TIP_X - 6, y=ARM_INNER + 6)).BoundBox.ZMax
     assert tip > HOLDER_TOP + 0.8 * ARM_RISE, "los brazos no suben"
@@ -295,7 +322,7 @@ def check(parts):
 def print_pose(name, shape):
     """Cada pieza sobre su cara plana de abajo, sin soportes."""
     s = shape.copy()
-    s.translate(V(0, 0, -s.BoundBox.ZMin))
+    s.translate(V(0, 0, -s.optimalBoundingBox().ZMin))
     return s
 
 
@@ -373,7 +400,7 @@ def previews(parts):
 
     os.makedirs(os.path.join(HERE, "img"), exist_ok=True)
     colors = {"base": "#4a565b", "cajon": "#9aa8ad", "aro": "#7d8b90", "cuerpo": "#30373a", "capucha": "#262b2d"}
-    film = centred_box(240, FILM_W, 0.15, FILM_Z)
+    film = xz_band(floor_z, lambda x: floor_z(x) + 0.15, FILM_W, -(ARM_TIP_X + 30), ARM_TIP_X + 30)
 
     def moved(shape, dz=0.0, dy=0.0):
         s = shape.copy()
@@ -410,7 +437,7 @@ def main():
     export(parts)
     previews(parts)
     for name, shape in parts.items():
-        bb = print_pose(name, shape).BoundBox
+        bb = print_pose(name, shape).optimalBoundingBox()
         print(f"{name:8s} {bb.XLength:6.1f} × {bb.YLength:5.1f} × {bb.ZLength:4.1f} mm, {shape.Volume / 1000:5.1f} cm³")
     print(f"pantalla → difusor {DIFFUSER_Z:.1f} mm · difusor → película {FILM_ABOVE_DIFFUSER} mm · "
           f"luz en Belka {LIGHT_ALONG:.0f}×{LIGHT_ACROSS:.0f} mm")
