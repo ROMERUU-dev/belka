@@ -12,6 +12,21 @@ def test_adapters_load():
     for a in adapters.values():
         if a.light_mm and a.frame_mm:
             assert a.light_mm[0] >= a.frame_mm[0] and a.light_mm[1] >= a.frame_mm[1]
+        if a.frame_mm and min(a.frame_mm) == 24 and a.light_mm:
+            # 135 film: the light reaches both edges, with the sprocket holes and the edge print.
+            assert min(a.light_mm) >= 35 + 2, a.id
+
+
+def test_the_holder_preset_matches_the_printed_holder():
+    """The lit zone Belka draws is the one the 3D-printed holder is designed around."""
+    import re
+    from pathlib import Path
+
+    script = Path(__file__).resolve().parents[1] / "hardware" / "portanegativos-35" / "portanegativos_35.py"
+    along, across = (float(v) for v in re.search(r"^LIGHT_ALONG, LIGHT_ACROSS = ([\d.]+), ([\d.]+)",
+                                                  script.read_text(), re.M).groups())
+    holder = {a.id: a for a in load_adapters()}["belka-35-v0"]
+    assert holder.light_mm == (along, across) and holder.frame_mm == (36, 24)
 
 
 def test_light_modes():

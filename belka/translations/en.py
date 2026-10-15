@@ -90,7 +90,7 @@ STRINGS: dict[str, str] = {
     "35 mm medio cuadro (18×24)": "35 mm half frame (18×24)",
     "35 mm panorámico (24×65)": "35 mm panoramic (24×65)",
     "Placa 4×5 in": "4×5 in sheet",
-    "Adaptador Belka 35 (prototipo)": "Belka 35 adapter (prototype)",
+    "Portanegativos Belka 35": "Belka 35 film holder",
     "Pantalla completa": "Full screen",
     # Develop panel
     "Película": "Film",

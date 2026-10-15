@@ -75,8 +75,10 @@ Para desarrollo: `python3 -m venv .venv && .venv/bin/pip install -r requirements
 
 1. **Pantalla horizontal** (laptop abierta a 180° o monitor acostado) y la cámara encima, perpendicular, con
    objetivo macro, en estativo o tripié.
-2. **Película a 5–10 mm de la pantalla, con difusor** (acrílico opalino de 2–3 mm o papel vegetal) entre ambas: si
-   la película toca la pantalla, la rejilla de píxeles sale en la foto. Esto es lo que resolverá el adaptador.
+2. **Película a 5–10 mm de la pantalla, con difusor** (acrílico opalino de 2–3 mm, papel vegetal o de horno; no papel
+   de impresión, que se come la luz y deja ver sus fibras) entre ambas: si la película toca la pantalla, la rejilla de
+   píxeles sale en la foto. El [portanegativos impreso](hardware/portanegativos-35/) deja todo a la distancia justa,
+   con el difusor tenso y la luz cubriendo la tira de orilla a orilla.
 3. **Brillo al máximo** y **luz nocturna desactivada**: tiñe la luz y cambia con la hora. Belka avisa y puede
    apagarla mientras está abierto.
 4. **1/30 s o más lento:** muchas pantallas atenúan con PWM y a velocidades rápidas aparecen bandas.
@@ -153,9 +155,7 @@ claridad) están en píxeles de resolución completa, para que la vista previa y
 - Perfiles de cámara (matrices de separación medidas) y calibración con carta de color sobre película.
 - Lote de rollo completo (captura en serie avanzando la tira) e historial guardado en el rollo.
 - Pinceles y degradados locales, como los de Lightroom.
-- **Adaptador para monitor** impreso en 3D: porta-tiras 35 mm / 120 con difusor a distancia fija y marcas de
-  registro que coinciden con las del panel (preajuste "Adaptador Belka 35 (prototipo)" ya reservado en
-  `belka/data/adapters.json`).
+- **Portanegativos para 120** impreso en 3D, como el de 35 mm.
 - **Dispositivo dedicado:** caja con panel de luz LED RGB de alto CRI controlado por USB, como alternativa a la
   pantalla.
 

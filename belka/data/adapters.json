@@ -9,8 +9,8 @@
     {"id": "120-67", "name": "120 6×7", "frame_mm": [70, 56], "light_mm": [90, 66]},
     {"id": "120-69", "name": "120 6×9", "frame_mm": [84, 56], "light_mm": [104, 66]},
     {"id": "4x5", "name": "Placa 4×5 in", "frame_mm": [120, 95], "light_mm": [130, 105]},
-    {"id": "belka-35-v0", "name": "Adaptador Belka 35 (prototipo)", "frame_mm": [36, 24], "light_mm": [50, 38],
-     "marks": true, "notes": "Reservado para el adaptador impreso en 3D: ventana de luz y marcas de registro."},
+    {"id": "belka-35-v0", "name": "Portanegativos Belka 35", "frame_mm": [36, 24], "light_mm": [52, 46],
+     "marks": true, "notes": "Para el portanegativos impreso de hardware/portanegativos-35: las marcas de esquina quedan en el borde de la ventana de su base."},
     {"id": "free", "name": "Pantalla completa", "frame_mm": null, "light_mm": null}
   ]
 }
