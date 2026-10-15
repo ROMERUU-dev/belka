@@ -8,6 +8,12 @@ La bayoneta la pone una **tapa de cuerpo Nikon** (BF‑1B o una genérica): se l
 este anillo encima. Así la precisión de la bayoneta viene de fábrica; la impresora solo hace la rosca, que es un
 estándar (M52 × 0,75).
 
+![El anillo](img/anillo.png)
+
+![Cómo va: la tapa en la cámara, el anillo pegado y el objetivo al revés](img/montaje.png)
+
+![Las tres pruebas de rosca](img/pruebas.png)
+
 ![Corte del anillo](img/corte.png)
 
 ![Dientes de la rosca](img/rosca.png)
