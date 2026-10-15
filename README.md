@@ -77,7 +77,7 @@ Para desarrollo: `python3 -m venv .venv && .venv/bin/pip install -r requirements
    objetivo macro, en estativo o tripié.
 2. **Película a 5–10 mm de la pantalla, con difusor** (acrílico opalino de 2–3 mm, papel vegetal o de horno; no papel
    de impresión, que se come la luz y deja ver sus fibras) entre ambas: si la película toca la pantalla, la rejilla de
-   píxeles sale en la foto. El [portanegativos impreso](hardware/portanegativos-35/) deja todo a la distancia justa,
+   píxeles sale en la foto. Los [portanegativos impresos](hardware/) dejan todo a la distancia justa,
    con el difusor tenso y la luz cubriendo la tira de orilla a orilla.
 3. **Brillo al máximo** y **luz nocturna desactivada**: tiñe la luz y cambia con la hora. Belka avisa y puede
    apagarla mientras está abierto.

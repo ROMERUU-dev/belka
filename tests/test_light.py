@@ -22,11 +22,15 @@ def test_the_holder_preset_matches_the_printed_holder():
     import re
     from pathlib import Path
 
-    script = Path(__file__).resolve().parents[1] / "hardware" / "portanegativos-35" / "portanegativos_35.py"
-    along, across = (float(v) for v in re.search(r"^LIGHT_ALONG, LIGHT_ACROSS = ([\d.]+), ([\d.]+)",
-                                                  script.read_text(), re.M).groups())
     holder = {a.id: a for a in load_adapters()}["belka-35-v0"]
-    assert holder.light_mm == (along, across) and holder.frame_mm == (36, 24)
+    assert holder.frame_mm == (36, 24)
+    hardware = Path(__file__).resolve().parents[1] / "hardware"
+    scripts = sorted(hardware.glob("portanegativos-35*/portanegativos_35*.py"))
+    assert len(scripts) == 2  # v1 and v2 (retro)
+    for script in scripts:
+        along, across = (float(v) for v in re.search(r"^LIGHT_ALONG, LIGHT_ACROSS = ([\d.]+), ([\d.]+)",
+                                                      script.read_text(), re.M).groups())
+        assert holder.light_mm == (along, across), script.name
 
 
 def test_light_modes():
