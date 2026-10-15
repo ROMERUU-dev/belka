@@ -11,3 +11,9 @@ preajuste «Portanegativos Belka 35» del panel de luz (zona iluminada de 52 × 
 
 Cada carpeta trae el script paramétrico de FreeCAD, los STL listos para imprimir, el archivo `.FCStd` y una guía de
 impresión y armado.
+
+## Para la cámara
+
+| | Qué es |
+|---|---|
+| [Anillo inversor 52 mm → Nikon F](anillo-inversor-52/) | Monta al revés un 50 mm (rosca de filtro de 52 mm) para escanear cerca de 1:1. Se pega a una tapa de cuerpo Nikon, que pone la bayoneta. |
